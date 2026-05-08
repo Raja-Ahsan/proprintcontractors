@@ -1,7 +1,7 @@
 import InputError from '@/Components/InputError';
 import { getCatalogExtraBySlug } from '@/data/catalog';
 import ShopLayout from '@/Layouts/ShopLayout';
-import { Head, Link, router, useForm } from '@inertiajs/react';
+import { Head, Link, useForm } from '@inertiajs/react';
 import {
     ArrowLeft,
     Check,
@@ -258,12 +258,7 @@ export default function Show({ product, related }) {
 
     function addToCart(e) {
         e.preventDefault();
-        submitCart(false);
-    }
-
-    function buyNow(e) {
-        e.preventDefault();
-        submitCart(true);
+        submitCart();
     }
 
     function openCustomizer() {
@@ -276,7 +271,7 @@ export default function Show({ product, related }) {
         window.open(url, '_blank', 'noopener,noreferrer');
     }
 
-    function submitCart(goCart) {
+    function submitCart() {
         form.setData({
             product_id: product.id,
             quantity: qty,
@@ -287,11 +282,6 @@ export default function Show({ product, related }) {
 
         form.post(route('cart.store'), {
             preserveScroll: true,
-            onSuccess: () => {
-                if (goCart) {
-                    router.visit(route('cart.index'));
-                }
-            },
         });
     }
 
@@ -801,36 +791,29 @@ export default function Show({ product, related }) {
                             </div>
                         )}
 
-                        {productHasCustomizer(product) ? (
-                            <button
-                                type="button"
-                                onClick={openCustomizer}
-                                disabled={
-                                    (isDbVariable && !matchedVariation) || !stockOk
-                                }
-                                className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-primary/50 bg-primary/10 px-6 py-4 font-semibold text-primary transition-colors hover:bg-primary/15 disabled:opacity-50"
-                            >
-                                <Sparkles className="h-4 w-4" /> Customize product
-                            </button>
-                        ) : null}
-
-                        <div className="flex gap-3">
+                        <div className="flex w-full flex-nowrap gap-3">
                             <button
                                 type="button"
                                 onClick={addToCart}
                                 disabled={purchaseDisabled}
-                                className="inline-flex flex-1 items-center justify-center gap-2 rounded-full border border-border bg-secondary px-6 py-4 font-semibold transition-colors hover:border-primary disabled:opacity-50"
+                                className="inline-flex min-h-[3.25rem] min-w-0 flex-1 items-center justify-center gap-2 rounded-full border border-border bg-secondary px-6 py-4 font-semibold transition-colors hover:border-primary disabled:opacity-50"
                             >
                                 <ShoppingCart className="h-4 w-4" /> Add to Cart
                             </button>
-                            <button
-                                type="button"
-                                onClick={buyNow}
-                                disabled={purchaseDisabled}
-                                className="inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-primary px-6 py-4 font-semibold text-primary-foreground shadow-glow transition-transform hover:scale-105 disabled:opacity-50"
-                            >
-                                Buy Now
-                            </button>
+                            {productHasCustomizer(product) ? (
+                                <button
+                                    type="button"
+                                    onClick={openCustomizer}
+                                    disabled={
+                                        (isDbVariable && !matchedVariation) ||
+                                        !stockOk
+                                    }
+                                    className="inline-flex min-h-[3.25rem] min-w-0 flex-1 items-center justify-center gap-2 rounded-full border border-primary/50 bg-primary/10 px-6 py-4 font-semibold text-primary transition-colors hover:bg-primary/15 disabled:opacity-50"
+                                >
+                                    <Sparkles className="h-4 w-4" />
+                                    Customize product
+                                </button>
+                            ) : null}
                         </div>
                         <InputError message={form.errors.quantity} />
                         <InputError message={form.errors.product_id} />

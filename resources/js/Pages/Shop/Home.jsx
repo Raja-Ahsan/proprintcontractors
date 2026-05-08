@@ -76,14 +76,14 @@ export default function Home() {
                             </span>
                         </div>
                         <h1 className="text-5xl font-black leading-[1.05] md:text-7xl lg:text-8xl">
-                            <Kinetic text="Print Anything." />
+                            <Kinetic text="Print Anything. Testing" />
                             <br />
                             <span className="gradient-text-animated">
                                 <Kinetic text="Brand Everything." delay={0.6} />
                             </span>
                         </h1>
                         <p className="reveal reveal-3 mx-auto max-w-2xl text-lg text-muted-foreground md:text-xl">
-                            From custom apparel to full brand identity — Pro Print
+                            From custom apparel to full brand identity sss — Pro Print
                             Contractors is the all-in-one platform for contractors who
                             refuse to look ordinary.
                         </p>

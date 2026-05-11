@@ -12,11 +12,12 @@ export default function Create() {
         description: '',
         sort_order: 0,
         is_active: true,
+        image: null,
     });
 
     function submit(e) {
         e.preventDefault();
-        form.post(route('admin.categories.store'));
+        form.post(route('admin.categories.store'), { forceFormData: true });
     }
 
     return (
@@ -76,6 +77,19 @@ export default function Create() {
                             message={form.errors.description}
                             className="mt-2"
                         />
+                    </div>
+                    <div>
+                        <InputLabel htmlFor="image" value="Image (optional)" />
+                        <input
+                            id="image"
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) =>
+                                form.setData('image', e.target.files?.[0] ?? null)
+                            }
+                            className="mt-1 block w-full text-sm text-muted-foreground file:me-4 file:rounded-md file:border-0 file:bg-primary file:px-4 file:py-2 file:text-sm file:font-semibold file:text-primary-foreground"
+                        />
+                        <InputError message={form.errors.image} className="mt-2" />
                     </div>
                     <div>
                         <InputLabel htmlFor="sort_order" value="Sort order" />

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Category;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -35,6 +36,7 @@ class CategoryController extends Controller
             'description' => ['nullable', 'string'],
             'sort_order' => ['nullable', 'integer', 'min:0'],
             'is_active' => ['boolean'],
+            'image' => ['nullable', 'image', 'max:4096'],
         ]);
 
         $slug = $request->filled('slug')
@@ -49,6 +51,12 @@ class CategoryController extends Controller
         $validated['slug'] = $slug;
         $validated['is_active'] = $request->boolean('is_active');
         $validated['sort_order'] = $validated['sort_order'] ?? 0;
+
+        if ($request->hasFile('image')) {
+            $validated['image'] = $request->file('image')->store('categories', 'public');
+        } else {
+            unset($validated['image']);
+        }
 
         Category::query()->create($validated);
 
@@ -69,6 +77,7 @@ class CategoryController extends Controller
             'description' => ['nullable', 'string'],
             'sort_order' => ['nullable', 'integer', 'min:0'],
             'is_active' => ['boolean'],
+            'image' => ['nullable', 'image', 'max:4096'],
         ]);
 
         $slug = $request->filled('slug')
@@ -84,6 +93,15 @@ class CategoryController extends Controller
         $validated['is_active'] = $request->boolean('is_active');
         $validated['sort_order'] = $validated['sort_order'] ?? 0;
 
+        if ($request->hasFile('image')) {
+            if ($category->image) {
+                Storage::disk('public')->delete($category->image);
+            }
+            $validated['image'] = $request->file('image')->store('categories', 'public');
+        } else {
+            unset($validated['image']);
+        }
+
         $category->update($validated);
 
         return redirect()->route('admin.categories.index')->with('success', 'Category updated.');
@@ -91,6 +109,10 @@ class CategoryController extends Controller
 
     public function destroy(Category $category): RedirectResponse
     {
+        if ($category->image) {
+            Storage::disk('public')->delete($category->image);
+        }
+
         $category->delete();
 
         return redirect()->route('admin.categories.index')->with('success', 'Category deleted.');

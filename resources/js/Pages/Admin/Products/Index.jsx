@@ -1,6 +1,6 @@
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Head, Link, router } from '@inertiajs/react';
-import { ExternalLink, Pencil, Trash2 } from 'lucide-react';
+import { ExternalLink, Pencil, Sparkles, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 
 function money(amount) {
@@ -203,7 +203,18 @@ export default function Index({ products, filters }) {
                                         </div>
                                     </td>
                                     <td className="px-4 py-3 align-top text-sm font-semibold text-foreground">
-                                        {p.name}
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <span>{p.name}</span>
+                                            {p.is_featured ? (
+                                                <span
+                                                    className="inline-flex items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-primary ring-1 ring-primary/30"
+                                                    title="Shown on home page (featured)"
+                                                >
+                                                    <Sparkles className="h-3 w-3" />
+                                                    Featured
+                                                </span>
+                                            ) : null}
+                                        </div>
                                     </td>
                                     <td className="px-4 py-3 text-sm capitalize text-muted-foreground">
                                         {p.type === 'variable'

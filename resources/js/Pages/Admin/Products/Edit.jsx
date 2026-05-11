@@ -31,7 +31,12 @@ function skuSuggestionFromName(name) {
     return base.slice(0, 100);
 }
 
-export default function Edit({ product, categories }) {
+export default function Edit({
+    product,
+    categories,
+    can_mark_featured,
+    featured_limit,
+}) {
     const form = useForm({
         type: product.type === 'variable' ? 'variable' : 'simple',
         category_id: String(product.category_id),
@@ -46,6 +51,7 @@ export default function Edit({ product, categories }) {
                 : '',
         stock_quantity: String(product.stock_quantity ?? 0),
         is_active: product.is_active,
+        is_featured: product.is_featured ?? false,
         is_customizable: product.is_customizable ?? false,
         custom_print_area_json: JSON.stringify(
             product.custom_print_area ?? {
@@ -1076,6 +1082,32 @@ export default function Edit({ product, categories }) {
                             />
                         </div>
                     </div>
+
+                    <div className="flex items-center gap-2">
+                        <input
+                            id="is_featured"
+                            type="checkbox"
+                            checked={form.data.is_featured}
+                            disabled={
+                                !can_mark_featured && !form.data.is_featured
+                            }
+                            onChange={(e) =>
+                                form.setData('is_featured', e.target.checked)
+                            }
+                            className="rounded border-border bg-background text-primary shadow-sm focus:ring-primary disabled:opacity-50"
+                        />
+                        <label
+                            htmlFor="is_featured"
+                            className="text-sm text-foreground"
+                        >
+                            Featured on home page
+                        </label>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                        Up to {featured_limit} products can be featured at once. Only
+                        active products are shown on the home page.
+                    </p>
+                    <InputError message={form.errors.is_featured} className="mt-1" />
 
                     <div className="flex items-center gap-2">
                         <input

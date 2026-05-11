@@ -53,15 +53,7 @@ class ProductController extends Controller
                 ];
             }
 
-            $imageUrl = null;
-            if ($p->image) {
-                $imageUrl = asset('storage/'.$p->image);
-            } else {
-                $varWithImage = $p->variations->first(fn (ProductVariation $v): bool => filled($v->image));
-                if ($varWithImage && $varWithImage->image) {
-                    $imageUrl = asset('storage/'.$varWithImage->image);
-                }
-            }
+            $imageUrl = $p->listImageUrl();
 
             return [
                 'id' => $p->id,
@@ -70,6 +62,7 @@ class ProductController extends Controller
                 'type' => $type,
                 'sku' => $p->sku,
                 'is_active' => (bool) $p->is_active,
+                'is_featured' => (bool) $p->is_featured,
                 'price' => $p->price,
                 'stock_quantity' => $p->stock_quantity,
                 'category' => $p->category
@@ -95,6 +88,8 @@ class ProductController extends Controller
 
         return Inertia::render('Admin/Products/Create', [
             'categories' => $categories,
+            'can_mark_featured' => Product::query()->where('is_featured', true)->count() < Product::MAX_FEATURED,
+            'featured_limit' => Product::MAX_FEATURED,
         ]);
     }
 
@@ -109,6 +104,7 @@ class ProductController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'is_active' => ['boolean'],
+            'is_featured' => ['boolean'],
             'is_customizable' => ['boolean'],
             'custom_print_area_json' => ['nullable', 'string'],
             'image' => ['nullable', 'image', 'max:4096'],
@@ -148,6 +144,8 @@ class ProductController extends Controller
             ['slug' => ['required', 'string', 'max:255', Rule::unique('products', 'slug')]]
         )->validate();
 
+        $this->ensureFeaturedSlotAvailable($request->boolean('is_featured'));
+
         $imagePath = null;
         if ($request->hasFile('image')) {
             $imagePath = $request->file('image')->store('products', 'public');
@@ -177,6 +175,7 @@ class ProductController extends Controller
                 'image' => $imagePath,
                 'gallery' => $galleryPaths === [] ? null : array_values($galleryPaths),
                 'is_active' => $request->boolean('is_active'),
+                'is_featured' => $request->boolean('is_featured'),
                 'is_customizable' => $request->boolean('is_customizable'),
                 'custom_print_area' => $this->parseCustomPrintAreaJson($request->input('custom_print_area_json')),
             ]);
@@ -202,6 +201,7 @@ class ProductController extends Controller
                 'image' => $imagePath,
                 'gallery' => null,
                 'is_active' => $request->boolean('is_active'),
+                'is_featured' => $request->boolean('is_featured'),
                 'is_customizable' => $request->boolean('is_customizable'),
                 'custom_print_area' => $this->parseCustomPrintAreaJson($request->input('custom_print_area_json')),
             ]);
@@ -253,6 +253,9 @@ class ProductController extends Controller
         return Inertia::render('Admin/Products/Edit', [
             'product' => $payload,
             'categories' => $categories,
+            'can_mark_featured' => $product->is_featured
+                || Product::query()->where('is_featured', true)->where('id', '!=', $product->id)->count() < Product::MAX_FEATURED,
+            'featured_limit' => Product::MAX_FEATURED,
         ]);
     }
 
@@ -267,6 +270,7 @@ class ProductController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'is_active' => ['boolean'],
+            'is_featured' => ['boolean'],
             'is_customizable' => ['boolean'],
             'custom_print_area_json' => ['nullable', 'string'],
             'image' => ['nullable', 'image', 'max:4096'],
@@ -306,6 +310,8 @@ class ProductController extends Controller
             ['slug' => ['required', 'string', 'max:255', Rule::unique('products', 'slug')->ignore($product->id)]]
         )->validate();
 
+        $this->ensureFeaturedSlotAvailable($request->boolean('is_featured'), $product->id);
+
         if ($type === Product::TYPE_SIMPLE) {
             $update = [
                 'category_id' => (int) $validated['category_id'],
@@ -319,6 +325,7 @@ class ProductController extends Controller
                 'compare_at_price' => $validated['compare_at_price'] ?? null,
                 'stock_quantity' => (int) $validated['stock_quantity'],
                 'is_active' => $request->boolean('is_active'),
+                'is_featured' => $request->boolean('is_featured'),
                 'is_customizable' => $request->boolean('is_customizable'),
                 'custom_print_area' => $this->parseCustomPrintAreaJson($request->input('custom_print_area_json')),
             ];
@@ -384,6 +391,7 @@ class ProductController extends Controller
                 'sku' => ($validated['sku'] ?? '') !== '' ? $validated['sku'] : null,
                 'description' => $validated['description'] ?? null,
                 'is_active' => $request->boolean('is_active'),
+                'is_featured' => $request->boolean('is_featured'),
                 'is_customizable' => $request->boolean('is_customizable'),
                 'custom_print_area' => $this->parseCustomPrintAreaJson($request->input('custom_print_area_json')),
                 'gallery' => null,
@@ -496,6 +504,27 @@ class ProductController extends Controller
         $product->delete();
 
         return redirect()->route('admin.products.index')->with('success', 'Product deleted.');
+    }
+
+    /**
+     * Home page shows at most {@see Product::MAX_FEATURED} featured products.
+     */
+    protected function ensureFeaturedSlotAvailable(bool $wantsFeatured, ?int $exceptProductId = null): void
+    {
+        if (! $wantsFeatured) {
+            return;
+        }
+
+        $query = Product::query()->where('is_featured', true);
+        if ($exceptProductId !== null) {
+            $query->where('id', '!=', $exceptProductId);
+        }
+
+        if ($query->count() >= Product::MAX_FEATURED) {
+            throw ValidationException::withMessages([
+                'is_featured' => 'At most '.Product::MAX_FEATURED.' products can be featured on the home page. Edit another product and uncheck Featured first.',
+            ]);
+        }
     }
 
     /**

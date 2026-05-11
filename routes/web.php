@@ -17,8 +17,8 @@ use App\Http\Controllers\Shop\CartCouponController;
 use App\Http\Controllers\Shop\CheckoutController;
 use App\Http\Controllers\Shop\CustomizationUploadController;
 use App\Http\Controllers\Shop\HomeController;
-use App\Http\Controllers\Shop\ProductCustomizeController;
 use App\Http\Controllers\Shop\ProductController;
+use App\Http\Controllers\Shop\ProductCustomizeController;
 use App\Http\Controllers\Shop\StripeCheckoutController;
 use App\Http\Controllers\StripeWebhookController;
 use Illuminate\Support\Facades\Route;
@@ -47,11 +47,12 @@ Route::post('/customization/upload', [CustomizationUploadController::class, 'sto
 
 Route::get('/cart', [CartController::class, 'index'])->name('cart.index');
 Route::post('/cart', [CartController::class, 'store'])->name('cart.store');
-Route::patch('/cart/{cartItem}', [CartController::class, 'update'])->name('cart.update');
-Route::delete('/cart/{cartItem}', [CartController::class, 'destroy'])->name('cart.destroy');
 
 Route::post('/cart/coupon', [CartCouponController::class, 'store'])->name('cart.coupon.store');
 Route::delete('/cart/coupon', [CartCouponController::class, 'destroy'])->name('cart.coupon.destroy');
+
+Route::patch('/cart/{cartItem}', [CartController::class, 'update'])->name('cart.update');
+Route::delete('/cart/{cartItem}', [CartController::class, 'destroy'])->name('cart.destroy');
 
 Route::get('/checkout', [CheckoutController::class, 'create'])->name('checkout.create');
 Route::post('/checkout', [CheckoutController::class, 'store'])->name('checkout.store');

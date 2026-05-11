@@ -1,7 +1,7 @@
 import InputError from '@/Components/InputError';
 import PrimaryButton from '@/Components/PrimaryButton';
 import ShopLayout from '@/Layouts/ShopLayout';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
     Canvas,
     FabricImage,
@@ -53,8 +53,46 @@ function money(amount) {
     }).format(Number(amount));
 }
 
+function inertiaErrorText(errors) {
+    if (!errors || typeof errors !== 'object') {
+        return '';
+    }
+
+    return Object.values(errors)
+        .flatMap((x) =>
+            typeof x === 'string' ? [x] : Array.isArray(x) ? x : [String(x ?? '')],
+        )
+        .filter(Boolean)
+        .join(' ')
+        .trim();
+}
+
+function inertiaFieldError(errors, key) {
+    if (!errors || typeof errors !== 'object') {
+        return undefined;
+    }
+
+    const v = errors[key];
+
+    if (v == null || v === '') {
+        return undefined;
+    }
+
+    if (typeof v === 'string') {
+        return v;
+    }
+
+    if (Array.isArray(v)) {
+        const r = v.find((x) => x != null && String(x).trim() !== '');
+        return r !== undefined ? String(r) : undefined;
+    }
+
+    return String(v);
+}
+
 export default function ProductCustomize({ product, initialVariation, printArea }) {
     const wrapRef = useRef(null);
+    const fabricScrollParentRef = useRef(null);
     const canvasElRef = useRef(null);
     const fabricCanvasRef = useRef(null);
 
@@ -67,6 +105,13 @@ export default function ProductCustomize({ product, initialVariation, printArea 
         zoom: 1,
     });
     const [qty, setQty] = useState(1);
+    const [cartSubmitting, setCartSubmitting] = useState(false);
+
+    /** Fabric mutates objects in-place; React must re-mount controls when refs stay the same. */
+    const [, forceSelectionRedraw] = useState(0);
+
+    const page = usePage();
+    const pageErrors = page.props.errors ?? {};
 
     const bgUrl =
         initialVariation?.image_url ?? product.image_url ?? null;
@@ -84,12 +129,6 @@ export default function ProductCustomize({ product, initialVariation, printArea 
         [product.id, variationId],
     );
 
-    const cartForm = useForm({
-        product_id: product.id,
-        product_variation_id: variationId,
-        quantity: 1,
-    });
-
     const syncCanvasSelection = useCallback(() => {
         const canvas = fabricCanvasRef.current;
 
@@ -98,7 +137,48 @@ export default function ProductCustomize({ product, initialVariation, printArea 
         }
 
         setSelected(canvas.getActiveObject() ?? null);
+        forceSelectionRedraw((n) => n + 1);
     }, []);
+
+    /** Scroll / resize / CSS scale change offset maps for pointer coordinates (critical inside overflow containers). */
+    useEffect(() => {
+        const canvas = fabricCanvasRef.current;
+        const scrollEl = fabricScrollParentRef.current;
+
+        if (!ready || !canvas || !scrollEl) {
+            return undefined;
+        }
+
+        const bump = () => {
+            window.requestAnimationFrame(() => {
+                canvas.calcOffset?.();
+                try {
+                    canvas.calcViewportBoundaries?.();
+                } catch {
+                    /* noop */
+                }
+            });
+        };
+
+        scrollEl.addEventListener('scroll', bump, { passive: true });
+        window.addEventListener('resize', bump);
+
+        const wrapEl = canvas.upperCanvasEl?.parentElement;
+        const ro =
+            typeof ResizeObserver !== 'undefined' && wrapEl
+                ? new ResizeObserver(bump)
+                : null;
+
+        ro?.observe(wrapEl);
+        bump();
+        window.requestAnimationFrame(bump);
+
+        return () => {
+            scrollEl.removeEventListener('scroll', bump);
+            window.removeEventListener('resize', bump);
+            ro?.disconnect();
+        };
+    }, [ready]);
 
     useEffect(() => {
         let cancelled = false;
@@ -111,15 +191,61 @@ export default function ProductCustomize({ product, initialVariation, printArea 
             width: CANVAS_W,
             height: CANVAS_H,
             preserveObjectStacking: true,
+            enablePointerEvents: true,
+            targetFindTolerance: 8,
+            allowTouchScrolling: false,
+            stopContextMenu: true,
         });
 
         fabricCanvasRef.current = canvas;
 
+        const upper = canvas.upperCanvasEl;
+        const lower = canvas.lowerCanvasEl;
+        const wrap = upper?.parentElement;
+
+        for (const el of [upper, lower, wrap]) {
+            if (el && 'style' in el) {
+                el.style.touchAction = 'none';
+            }
+        }
+
         const onSel = () => syncCanvasSelection();
+
+        let transformRaf = null;
+        const onDuringTransform = () => {
+            if (transformRaf != null) {
+                return;
+            }
+            transformRaf = window.requestAnimationFrame(() => {
+                transformRaf = null;
+                syncCanvasSelection();
+            });
+        };
+
         canvas.on('selection:created', onSel);
         canvas.on('selection:updated', onSel);
-        canvas.on('selection:cleared', () => setSelected(null));
-        canvas.on('object:modified', onSel);
+        canvas.on('selection:cleared', onSel);
+        const onModified = (e) => {
+            const target = e?.target;
+
+            if (
+                target?.name === 'user-image' &&
+                target.scaleX !== target.scaleY
+            ) {
+                const sx = target.scaleX ?? 1;
+
+                target.set({ scaleY: sx });
+                target.setCoords?.();
+                canvas.requestRenderAll();
+            }
+
+            onSel();
+        };
+
+        canvas.on('object:modified', onModified);
+        canvas.on('object:moving', onDuringTransform);
+        canvas.on('object:scaling', onDuringTransform);
+        canvas.on('object:rotating', onDuringTransform);
 
         const { left, top, width, height } = printRectPx(
             printArea,
@@ -135,6 +261,8 @@ export default function ProductCustomize({ product, initialVariation, printArea 
                     top,
                     width,
                     height,
+                    originX: 'left',
+                    originY: 'top',
                     fill: 'transparent',
                     stroke: 'rgba(249,115,22,0.9)',
                     strokeWidth: 2,
@@ -192,6 +320,8 @@ export default function ProductCustomize({ product, initialVariation, printArea 
                 top,
                 width,
                 height,
+                originX: 'left',
+                originY: 'top',
                 fill: 'transparent',
                 stroke: 'rgba(249,115,22,0.9)',
                 strokeWidth: 2,
@@ -277,8 +407,22 @@ export default function ProductCustomize({ product, initialVariation, printArea 
                 top: pt + ph / 2 - (img.height * sc) / 2,
                 scaleX: sc,
                 scaleY: sc,
+                originX: 'left',
+                originY: 'top',
+                centeredScaling: false,
+                objectCaching: false,
+                cornerSize: 14,
+                touchCornerSize: 32,
+                transparentCorners: false,
+                visible: true,
+                evented: true,
+                selectable: true,
+                hasControls: true,
+                hasBorders: true,
                 name: 'user-image',
             });
+
+            img.setCoords?.();
 
             canvas.add(img);
             canvas.setActiveObject(img);
@@ -307,6 +451,8 @@ export default function ProductCustomize({ product, initialVariation, printArea 
         const t = new IText('Your text', {
             left: pl + 24,
             top: pt + 24,
+            originX: 'left',
+            originY: 'top',
             fontSize: 32,
             fill: '#0f172a',
             fontFamily: FONT_STACKS[0],
@@ -407,10 +553,14 @@ export default function ProductCustomize({ product, initialVariation, printArea 
             return '';
         }
 
-        return canvas.toDataURL({
-            format: 'png',
-            multiplier: 1.5,
-        });
+        try {
+            return canvas.toDataURL({
+                format: 'png',
+                multiplier: 1.5,
+            });
+        } catch {
+            return '';
+        }
     }
 
     function openPreviewModal() {
@@ -508,7 +658,17 @@ export default function ProductCustomize({ product, initialVariation, printArea 
 
         const preview_png = exportPreview();
 
-        cartForm.setData({
+        if (!preview_png || preview_png.length < 64) {
+            void Swal.fire({
+                icon: 'error',
+                title: 'Could not export preview',
+                text: 'If you used images from another site, try re-uploading the file. Otherwise refresh and try again.',
+            });
+
+            return;
+        }
+
+        const payload = {
             product_id: product.id,
             product_variation_id: variationId,
             quantity: qty,
@@ -521,23 +681,24 @@ export default function ProductCustomize({ product, initialVariation, printArea 
                 },
                 preview_png,
             },
-        });
+        };
 
-        cartForm.post(route('cart.store'), {
+        setCartSubmitting(true);
+
+        router.post(route('cart.store'), payload, {
             preserveScroll: true,
+            onFinish: () => setCartSubmitting(false),
             onSuccess: () =>
-                Swal.fire({
+                void Swal.fire({
                     icon: 'success',
                     title: 'Added to cart',
                     text: 'You can checkout from the cart page.',
                 }),
             onError: (errors) =>
-                Swal.fire({
+                void Swal.fire({
                     icon: 'error',
                     title: 'Could not add to cart',
-                    text:
-                        Object.values(errors ?? {}).flat().join(' ') ||
-                        'Please try again.',
+                    text: inertiaErrorText(errors) || 'Please try again.',
                 }),
         });
     }
@@ -624,7 +785,10 @@ export default function ProductCustomize({ product, initialVariation, printArea 
 
                 <div className="mx-auto grid max-w-7xl gap-8 px-4 py-8 lg:grid-cols-[1fr_minmax(18rem,22rem)]">
                     <div className="rounded-3xl border border-border bg-card p-4 shadow-elegant lg:p-6">
-                        <div className="relative overflow-auto rounded-2xl border border-border bg-zinc-100 dark:bg-zinc-900">
+                        <div
+                            ref={fabricScrollParentRef}
+                            className="relative overflow-x-auto overflow-y-visible overscroll-x-contain rounded-2xl border border-border bg-zinc-100 select-none dark:bg-zinc-900"
+                        >
                             <div className="mx-auto inline-block rounded-lg bg-muted/30 p-2">
                                 {!ready && (
                                     <div className="flex min-h-[240px] w-[min(100%,880px)] items-center justify-center gap-2 text-muted-foreground">
@@ -634,7 +798,11 @@ export default function ProductCustomize({ product, initialVariation, printArea 
                                 )}
                                 <canvas
                                     ref={canvasElRef}
-                                    className={ready ? 'block max-h-[72vh]' : 'hidden'}
+                                    className={
+                                        ready
+                                            ? 'block h-auto w-full max-w-full touch-none select-none'
+                                            : 'hidden'
+                                    }
                                 />
                             </div>
                             <p className="mx-auto mt-3 max-w-2xl px-2 text-center text-xs text-muted-foreground">
@@ -741,6 +909,7 @@ export default function ProductCustomize({ product, initialVariation, printArea 
                                                 });
 
                                                 fabricCanvasRef.current?.requestRenderAll();
+                                                syncCanvasSelection();
                                             }}
                                             className="mt-1 w-full accent-primary"
                                         />
@@ -760,7 +929,9 @@ export default function ProductCustomize({ product, initialVariation, printArea 
                                                     angle: Number(e.target.value),
                                                 });
 
+                                                selected.setCoords?.();
                                                 fabricCanvasRef.current?.requestRenderAll();
+                                                syncCanvasSelection();
                                             }}
                                             className="mt-1 w-full accent-primary"
                                         />
@@ -774,11 +945,21 @@ export default function ProductCustomize({ product, initialVariation, printArea 
                                             min="0.12"
                                             max="3.5"
                                             step="0.02"
-                                            value={selected.scaleX ?? 1}
+                                            value={
+                                                Math.min(
+                                                    3.5,
+                                                    Math.max(
+                                                        0.12,
+                                                        selected.scaleX ?? 1,
+                                                    ),
+                                                )
+                                            }
                                             onChange={(e) => {
                                                 const sc = Number(e.target.value);
 
                                                 selected.set({ scaleX: sc, scaleY: sc });
+
+                                                selected.setCoords?.();
 
                                                 fabricCanvasRef.current?.requestRenderAll();
 
@@ -805,6 +986,7 @@ export default function ProductCustomize({ product, initialVariation, printArea 
                                                         });
 
                                                         fabricCanvasRef.current?.requestRenderAll();
+                                                        syncCanvasSelection();
                                                     }}
                                                     className="mt-1 w-full accent-primary"
                                                 />
@@ -827,6 +1009,7 @@ export default function ProductCustomize({ product, initialVariation, printArea 
                                                         });
 
                                                         fabricCanvasRef.current?.requestRenderAll();
+                                                        syncCanvasSelection();
                                                     }}
                                                     className="mt-1 w-full rounded-md border border-border bg-background px-2 py-2 text-sm text-foreground"
                                                 >
@@ -853,6 +1036,7 @@ export default function ProductCustomize({ product, initialVariation, printArea 
                                                         selected.set({ fill: e.target.value });
 
                                                         fabricCanvasRef.current?.requestRenderAll();
+                                                        syncCanvasSelection();
                                                     }}
                                                     className="mt-1 h-9 w-full cursor-pointer rounded border border-border bg-background px-1"
                                                 />
@@ -862,13 +1046,16 @@ export default function ProductCustomize({ product, initialVariation, printArea 
                                                     <input
                                                         type="checkbox"
                                                         checked={selected.fontWeight === 'bold'}
-                                                        onChange={(e) =>
+                                                        onChange={(e) => {
                                                             selected.set({
                                                                 fontWeight: e.target.checked
                                                                     ? 'bold'
                                                                     : 'normal',
-                                                            })
-                                                        }
+                                                            });
+
+                                                            fabricCanvasRef.current?.requestRenderAll();
+                                                            syncCanvasSelection();
+                                                        }}
                                                     />
                                                     Bold
                                                 </label>
@@ -878,13 +1065,16 @@ export default function ProductCustomize({ product, initialVariation, printArea 
                                                         checked={
                                                             selected.fontStyle === 'italic'
                                                         }
-                                                        onChange={(e) =>
+                                                        onChange={(e) => {
                                                             selected.set({
                                                                 fontStyle: e.target.checked
                                                                     ? 'italic'
                                                                     : 'normal',
-                                                            })
-                                                        }
+                                                            });
+
+                                                            fabricCanvasRef.current?.requestRenderAll();
+                                                            syncCanvasSelection();
+                                                        }}
                                                     />
                                                     Italic
                                                 </label>
@@ -892,11 +1082,14 @@ export default function ProductCustomize({ product, initialVariation, printArea 
                                                     <input
                                                         type="checkbox"
                                                         checked={Boolean(selected.underline)}
-                                                        onChange={(e) =>
+                                                        onChange={(e) => {
                                                             selected.set({
                                                                 underline: e.target.checked,
-                                                            })
-                                                        }
+                                                            });
+
+                                                            fabricCanvasRef.current?.requestRenderAll();
+                                                            syncCanvasSelection();
+                                                        }}
                                                     />
                                                     Underline
                                                 </label>
@@ -918,6 +1111,7 @@ export default function ProductCustomize({ product, initialVariation, printArea 
                                                             });
 
                                                             fabricCanvasRef.current?.requestRenderAll();
+                                                            syncCanvasSelection();
                                                         }}
                                                         className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm"
                                                     />
@@ -938,6 +1132,7 @@ export default function ProductCustomize({ product, initialVariation, printArea 
                                                             });
 
                                                             fabricCanvasRef.current?.requestRenderAll();
+                                                            syncCanvasSelection();
                                                         }}
                                                         className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm"
                                                     />
@@ -955,6 +1150,7 @@ export default function ProductCustomize({ product, initialVariation, printArea 
                                                         });
 
                                                         fabricCanvasRef.current?.requestRenderAll();
+                                                        syncCanvasSelection();
                                                     }}
                                                     className="mt-1 w-full rounded-md border border-border bg-background px-2 py-2 text-sm"
                                                 >
@@ -969,7 +1165,7 @@ export default function ProductCustomize({ product, initialVariation, printArea 
                                                     <input
                                                         type="checkbox"
                                                         checked={Boolean(selected.shadow)}
-                                                        onChange={(e) =>
+                                                        onChange={(e) => {
                                                             selected.set({
                                                                 shadow: e.target.checked
                                                                     ? new Shadow({
@@ -979,8 +1175,11 @@ export default function ProductCustomize({ product, initialVariation, printArea 
                                                                           color: 'rgba(0,0,0,.35)',
                                                                       })
                                                                     : null,
-                                                            })
-                                                        }
+                                                            });
+
+                                                            fabricCanvasRef.current?.requestRenderAll();
+                                                            syncCanvasSelection();
+                                                        }}
                                                     />
                                                     Text shadow
                                                 </label>
@@ -1011,10 +1210,10 @@ export default function ProductCustomize({ product, initialVariation, printArea 
                             <PrimaryButton
                                 type="button"
                                 className="mt-4 w-full"
-                                disabled={cartForm.processing || !ready}
+                                disabled={cartSubmitting || !ready}
                                 onClick={addToCart}
                             >
-                                {cartForm.processing ? (
+                                {cartSubmitting ? (
                                     <span className="inline-flex items-center gap-2">
                                         <Loader2 className="h-4 w-4 animate-spin" />
                                         Saving…
@@ -1023,7 +1222,9 @@ export default function ProductCustomize({ product, initialVariation, printArea 
                                     'Add customized product to cart'
                                 )}
                             </PrimaryButton>
-                            <InputError message={cartForm.errors.customization} />
+                            <InputError
+                                message={inertiaFieldError(pageErrors, 'customization')}
+                            />
                         </div>
                     </aside>
                 </div>

@@ -86,7 +86,10 @@ class CheckoutController extends Controller
             return redirect()->route('cart.index')->withErrors(['cart' => 'Your cart is empty.']);
         }
 
-        $validated = $request->validate([
+        $sameBilling = filter_var($request->input('billing_same_as_shipping'), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+        $sameBilling = $sameBilling !== false;
+
+        $rules = [
             'shipping_name' => ['required', 'string', 'max:255'],
             'shipping_email' => ['required', 'email', 'max:255'],
             'shipping_phone' => ['nullable', 'string', 'max:50'],
@@ -96,8 +99,24 @@ class CheckoutController extends Controller
             'shipping_state' => ['nullable', 'string', 'max:120'],
             'shipping_postal_code' => ['required', 'string', 'max:30'],
             'shipping_country' => ['required', 'string', 'max:120'],
+            'billing_same_as_shipping' => ['required', 'boolean'],
             'notes' => ['nullable', 'string', 'max:2000'],
-        ]);
+        ];
+
+        if (! $sameBilling) {
+            $rules = array_merge($rules, [
+                'billing_name' => ['required', 'string', 'max:255'],
+                'billing_phone' => ['nullable', 'string', 'max:50'],
+                'billing_address_line1' => ['required', 'string', 'max:255'],
+                'billing_address_line2' => ['nullable', 'string', 'max:255'],
+                'billing_city' => ['required', 'string', 'max:120'],
+                'billing_state' => ['nullable', 'string', 'max:120'],
+                'billing_postal_code' => ['required', 'string', 'max:30'],
+                'billing_country' => ['required', 'string', 'max:120'],
+            ]);
+        }
+
+        $validated = $request->validate($rules);
 
         $taxRate = (float) config('shop.tax_rate', 0);
 
@@ -135,7 +154,28 @@ class CheckoutController extends Controller
         $total = round($afterDiscount + $tax + $shippingTotal, 2);
 
         $order = DB::transaction(function () use ($request, $lines, $validated, $coupon, $subtotal, $discount, $tax, $shippingTotal, $total) {
-            $order = Order::query()->create([
+            $billingSame = (bool) $validated['billing_same_as_shipping'];
+            $billing = $billingSame ? [
+                'billing_name' => $validated['shipping_name'],
+                'billing_phone' => $validated['shipping_phone'] ?? null,
+                'billing_address_line1' => $validated['shipping_address_line1'],
+                'billing_address_line2' => $validated['shipping_address_line2'] ?? null,
+                'billing_city' => $validated['shipping_city'],
+                'billing_state' => $validated['shipping_state'] ?? null,
+                'billing_postal_code' => $validated['shipping_postal_code'],
+                'billing_country' => $validated['shipping_country'],
+            ] : [
+                'billing_name' => $validated['billing_name'],
+                'billing_phone' => $validated['billing_phone'] ?? null,
+                'billing_address_line1' => $validated['billing_address_line1'],
+                'billing_address_line2' => $validated['billing_address_line2'] ?? null,
+                'billing_city' => $validated['billing_city'],
+                'billing_state' => $validated['billing_state'] ?? null,
+                'billing_postal_code' => $validated['billing_postal_code'],
+                'billing_country' => $validated['billing_country'],
+            ];
+
+            $order = Order::query()->create(array_merge([
                 'order_number' => 'ORD-'.strtoupper(bin2hex(random_bytes(4))).'-'.now()->format('His'),
                 'user_id' => $request->user()?->id,
                 'coupon_id' => $coupon?->id,
@@ -157,7 +197,7 @@ class CheckoutController extends Controller
                 'shipping_country' => $validated['shipping_country'],
                 'notes' => $validated['notes'] ?? null,
                 'placed_at' => now(),
-            ]);
+            ], $billing));
 
             foreach ($lines as $line) {
                 $product = $line->product;

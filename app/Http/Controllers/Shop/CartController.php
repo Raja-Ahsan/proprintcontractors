@@ -79,7 +79,13 @@ class CartController extends Controller
                 $customEnvelope['variation_id'] = $variationId;
                 $checksum = $this->customization->checksumFabric($customEnvelope['fabric']);
             } catch (\Throwable $e) {
-                return back()->withErrors(['customization' => 'Could not save this design. Please try again.']);
+                report($e);
+
+                return back()->withErrors([
+                    'customization' => config('app.debug')
+                        ? 'Could not save this design: '.$e->getMessage()
+                        : 'Could not save this design. Please try again.',
+                ]);
             }
 
             $previewStoredPath = $this->customization->storePreviewPng((string) $data['customization']['preview_png']);

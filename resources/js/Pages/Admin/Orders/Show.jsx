@@ -9,6 +9,27 @@ function money(amount) {
     }).format(Number(amount));
 }
 
+/** Best-effort: ISO codes show as localized country names; free-text values pass through */
+function regionLabel(codeOrName) {
+    if (!codeOrName) {
+        return null;
+    }
+    const trimmed = String(codeOrName).trim();
+    if (trimmed.length === 2 || trimmed.length === 3) {
+        try {
+            const label = new Intl.DisplayNames(['en'], { type: 'region' }).of(
+                trimmed.toUpperCase(),
+            );
+            if (label && label !== trimmed.toUpperCase()) {
+                return label;
+            }
+        } catch {
+            /* ignore */
+        }
+    }
+    return trimmed;
+}
+
 const selectClass =
     'mt-1 rounded-md border-border bg-background text-foreground shadow-sm focus:border-primary focus:ring-primary';
 
@@ -99,42 +120,97 @@ export default function Show({ order, statuses }) {
                         </form>
                     </div>
 
-                    <div className="px-6 py-4">
-                        <h3 className="text-sm font-bold text-foreground">
-                            Ship to
-                        </h3>
-                        <p className="mt-2 text-sm text-muted-foreground">
-                            {order.shipping_name}
-                            <br />
-                            {order.shipping_email}
-                            <br />
-                            {order.shipping_phone && (
-                                <>
-                                    {order.shipping_phone}
-                                    <br />
-                                </>
-                            )}
-                            {order.shipping_address_line1}
-                            <br />
-                            {order.shipping_address_line2 && (
-                                <>
-                                    {order.shipping_address_line2}
-                                    <br />
-                                </>
-                            )}
-                            {order.shipping_city}, {order.shipping_postal_code}
-                            <br />
-                            {order.shipping_country}
-                        </p>
-                        {order.notes && (
-                            <p className="mt-4 text-sm text-muted-foreground">
+                    <div className="grid gap-8 border-b border-border px-6 py-4 sm:grid-cols-2">
+                        <div>
+                            <h3 className="text-sm font-bold text-foreground">
+                                Ship to
+                            </h3>
+                            <p className="mt-2 text-sm text-muted-foreground">
+                                {order.shipping_name}
+                                <br />
+                                {order.shipping_email}
+                                <br />
+                                {order.shipping_phone ? (
+                                    <>
+                                        {order.shipping_phone}
+                                        <br />
+                                    </>
+                                ) : null}
+                                {order.shipping_address_line1}
+                                <br />
+                                {order.shipping_address_line2 ? (
+                                    <>
+                                        {order.shipping_address_line2}
+                                        <br />
+                                    </>
+                                ) : null}
+                                {order.shipping_city}
+                                {order.shipping_state
+                                    ? `, ${order.shipping_state} `
+                                    : ' '}
+                                {order.shipping_postal_code}
+                                <br />
+                                {regionLabel(order.shipping_country)}
+                            </p>
+                        </div>
+                        <div>
+                            <h3 className="text-sm font-bold text-foreground">
+                                Bill to
+                            </h3>
+                            <p className="mt-2 text-sm text-muted-foreground">
+                                {order.billing_name ? (
+                                    <>
+                                        {order.billing_name}
+                                        <br />
+                                        {order.billing_phone ? (
+                                            <>
+                                                {order.billing_phone}
+                                                <br />
+                                            </>
+                                        ) : null}
+                                        {order.billing_address_line1}
+                                        <br />
+                                        {order.billing_address_line2 ? (
+                                            <>
+                                                {order.billing_address_line2}
+                                                <br />
+                                            </>
+                                        ) : null}
+                                        {order.billing_city}
+                                        {order.billing_state
+                                            ? `, ${order.billing_state} `
+                                            : ' '}
+                                        {order.billing_postal_code}
+                                        <br />
+                                        {regionLabel(order.billing_country)}
+                                    </>
+                                ) : (
+                                    <>
+                                        Not stored separately · shown as{' '}
+                                        <span className="font-medium text-foreground">
+                                            ship to / legacy order
+                                        </span>
+                                        <br />
+                                        <span className="text-xs text-muted-foreground/90">
+                                            Orders placed before billing fields were saved
+                                            may only have shipping on file.
+                                        </span>
+                                    </>
+                                )}
+                            </p>
+                        </div>
+                    </div>
+
+                    {order.notes ? (
+                        <div className="border-b border-border px-6 py-4">
+                            <p className="text-sm text-muted-foreground">
                                 <span className="font-semibold text-foreground">
                                     Notes:
                                 </span>{' '}
                                 {order.notes}
                             </p>
-                        )}
-                    </div>
+                        </div>
+                    ) : null}
 
                     <div className="overflow-x-auto border-t border-border">
                         <table className="min-w-full divide-y divide-border">

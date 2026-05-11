@@ -4,10 +4,75 @@ namespace App\Services;
 
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use JsonException;
 use Throwable;
 
 class ProductCustomizationService
 {
+    /** @see https://www.php.net/manual/en/function.json-encode.php */
+    private const JSON_ENCODE_DEPTH = 8192;
+
+    /**
+     * Turn nested stdClass/object trees from decoding into plain arrays for validation & hashing.
+     *
+     * @return array<string, mixed>
+     */
+    public function normalizeFabricTree(mixed $fabric): array
+    {
+        if ($fabric === null) {
+            return [];
+        }
+
+        if (! is_array($fabric) && ! is_object($fabric)) {
+            throw new \InvalidArgumentException('Customization design fabric must be a JSON-like array or object.');
+        }
+
+        $json = json_encode(
+            $fabric,
+            \JSON_UNESCAPED_UNICODE | \JSON_INVALID_UTF8_SUBSTITUTE,
+            self::JSON_ENCODE_DEPTH,
+        );
+
+        if ($json === false) {
+            throw new \InvalidArgumentException('Customization design JSON could not be normalized.');
+        }
+
+        try {
+            $decoded = json_decode($json, true, self::JSON_ENCODE_DEPTH, \JSON_THROW_ON_ERROR);
+        } catch (JsonException $e) {
+            throw new \InvalidArgumentException(
+                'Customization design JSON could not be normalized: '.$e->getMessage(),
+                previous: $e,
+            );
+        }
+
+        return is_array($decoded) ? $decoded : [];
+    }
+
+    /**
+     * Recursive key sorting for deterministic checksums without {@see \JSON_SORT_KEYS}.
+     *
+     * Some PHP builds shipped with Windows / XAMPP omit the JSON_SORT_KEYS constant; this matches the typical effect of sorting object keys during encoding.
+     */
+    private function deepSortAssocKeysForHash(mixed $value): mixed
+    {
+        if (! is_array($value)) {
+            return $value;
+        }
+
+        foreach ($value as $k => $child) {
+            $value[$k] = $this->deepSortAssocKeysForHash($child);
+        }
+
+        if (array_is_list($value)) {
+            return $value;
+        }
+
+        ksort($value);
+
+        return $value;
+    }
+
     /**
      * Stable hash for merging cart lines — uses Fabric JSON only.
      *
@@ -19,7 +84,29 @@ class ProductCustomizationService
             return null;
         }
 
-        return hash('sha256', json_encode($fabric, JSON_THROW_ON_ERROR | JSON_SORT_KEYS | JSON_UNESCAPED_UNICODE));
+        $normalized = $this->normalizeFabricTree($fabric);
+        $sortedForHash = $this->deepSortAssocKeysForHash($normalized);
+
+        try {
+            $payload = json_encode(
+                $sortedForHash,
+                \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_UNICODE | \JSON_INVALID_UTF8_SUBSTITUTE,
+                self::JSON_ENCODE_DEPTH,
+            );
+
+            return hash('sha256', $payload);
+        } catch (JsonException $e) {
+            $fallback = json_encode(
+                $sortedForHash,
+                \JSON_UNESCAPED_UNICODE | \JSON_INVALID_UTF8_SUBSTITUTE | \JSON_PARTIAL_OUTPUT_ON_ERROR,
+                self::JSON_ENCODE_DEPTH,
+            );
+
+            return hash(
+                'sha256',
+                $fallback !== false ? $fallback : substr(serialize($normalized), 0, 65535),
+            );
+        }
     }
 
     public function decodeBase64Png(?string $dataUriOrBase64): ?string
@@ -40,13 +127,19 @@ class ProductCustomizationService
      */
     public function normalizeDesign(array $design, int $productId): array
     {
-        if (! isset($design['fabric']) || ! is_array($design['fabric'])) {
+        if (! array_key_exists('fabric', $design) || $design['fabric'] === null) {
+            throw new \InvalidArgumentException('Invalid customization design.');
+        }
+
+        $fabric = $this->normalizeFabricTree($design['fabric']);
+
+        if (! isset($fabric['objects']) || ! is_array($fabric['objects'])) {
             throw new \InvalidArgumentException('Invalid customization design.');
         }
 
         return [
             'product_id' => $productId,
-            'fabric' => $design['fabric'],
+            'fabric' => $fabric,
             'canvas_width' => isset($design['canvas_width']) ? (int) $design['canvas_width'] : null,
             'canvas_height' => isset($design['canvas_height']) ? (int) $design['canvas_height'] : null,
             'variation_id' => isset($design['variation_id']) ? (int) $design['variation_id'] : null,
@@ -137,7 +230,7 @@ class ProductCustomizationService
 
         if (is_string($store)) {
             try {
-                $store = json_decode($store, true, 512, JSON_THROW_ON_ERROR);
+                $store = json_decode($store, true, 512, \JSON_THROW_ON_ERROR);
             } catch (Throwable) {
                 return [];
             }

@@ -8,18 +8,41 @@ use Stripe\Stripe;
 
 class StripeCheckoutService
 {
-    public function __construct()
+    public function stripeSecret(): ?string
     {
-        Stripe::setApiKey(config('services.stripe.secret'));
+        $secret = config('services.stripe.secret');
+
+        if (is_string($secret)) {
+            $secret = trim($secret);
+            if ($secret !== '') {
+                return $secret;
+            }
+        }
+
+        if (! SiteSettings::tableReady()) {
+            return null;
+        }
+
+        $fromDb = SiteSettings::getDecrypted('payment.stripe_secret');
+
+        return is_string($fromDb) && trim($fromDb) !== '' ? trim($fromDb) : null;
     }
 
     public function isConfigured(): bool
     {
-        return ! empty(config('services.stripe.secret'));
+        return $this->stripeSecret() !== null;
     }
 
     public function createCheckoutSession(Order $order): string
     {
+        $secret = $this->stripeSecret();
+
+        if ($secret === null) {
+            throw new \RuntimeException('Stripe secret key is not configured.');
+        }
+
+        Stripe::setApiKey($secret);
+
         $currency = strtolower((string) config('shop.currency', 'usd'));
 
         $unitAmount = (int) round(((float) $order->total) * 100);

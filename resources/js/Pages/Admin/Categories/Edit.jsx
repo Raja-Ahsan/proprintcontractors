@@ -12,11 +12,16 @@ export default function Edit({ category }) {
         description: category.description ?? '',
         sort_order: category.sort_order ?? 0,
         is_active: category.is_active,
+        image: null,
     });
 
     function submit(e) {
         e.preventDefault();
-        form.put(route('admin.categories.update', category.id));
+        // PHP does not parse multipart form bodies on real PUT; spoof PUT via POST (same as product edit).
+        form.transform((data) => ({ ...data, _method: 'put' }));
+        form.post(route('admin.categories.update', category.id), {
+            forceFormData: true,
+        });
     }
 
     return (
@@ -75,6 +80,31 @@ export default function Edit({ category }) {
                             message={form.errors.description}
                             className="mt-2"
                         />
+                    </div>
+                    <div>
+                        <InputLabel htmlFor="image" value="Image" />
+                        {category.image_url ? (
+                            <div className="mt-2 flex items-center gap-4">
+                                <img
+                                    src={category.image_url}
+                                    alt=""
+                                    className="h-20 w-20 rounded-lg border border-border object-cover"
+                                />
+                                <p className="text-sm text-muted-foreground">
+                                    Upload a new file to replace this image.
+                                </p>
+                            </div>
+                        ) : null}
+                        <input
+                            id="image"
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) =>
+                                form.setData('image', e.target.files?.[0] ?? null)
+                            }
+                            className="mt-2 block w-full text-sm text-muted-foreground file:me-4 file:rounded-md file:border-0 file:bg-primary file:px-4 file:py-2 file:text-sm file:font-semibold file:text-primary-foreground"
+                        />
+                        <InputError message={form.errors.image} className="mt-2" />
                     </div>
                     <div>
                         <InputLabel htmlFor="sort_order" value="Sort order" />

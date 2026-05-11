@@ -38,6 +38,9 @@ export default function Index({ categories }) {
                         <thead className="bg-secondary/80">
                             <tr>
                                 <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                    Image
+                                </th>
+                                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">
                                     Name
                                 </th>
                                 <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -57,6 +60,19 @@ export default function Index({ categories }) {
                                     key={c.id}
                                     className="transition-colors hover:bg-secondary/30"
                                 >
+                                    <td className="px-4 py-3">
+                                        {c.image_url ? (
+                                            <img
+                                                src={c.image_url}
+                                                alt=""
+                                                className="h-12 w-12 rounded-md border border-border object-cover"
+                                            />
+                                        ) : (
+                                            <span className="inline-flex h-12 w-12 items-center justify-center rounded-md border border-dashed border-border text-xs text-muted-foreground">
+                                                —
+                                            </span>
+                                        )}
+                                    </td>
                                     <td className="px-4 py-3 text-sm font-semibold text-foreground">
                                         {c.name}
                                     </td>

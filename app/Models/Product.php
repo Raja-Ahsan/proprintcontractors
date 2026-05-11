@@ -12,6 +12,9 @@ class Product extends Model
 
     public const TYPE_VARIABLE = 'variable';
 
+    /** Maximum products shown on the home “Featured” section (admin cannot exceed this). */
+    public const MAX_FEATURED = 5;
+
     protected $appends = [
         'image_url',
         'gallery_urls',
@@ -31,6 +34,7 @@ class Product extends Model
         'image',
         'gallery',
         'is_active',
+        'is_featured',
         'is_customizable',
         'custom_print_area',
     ];
@@ -44,6 +48,7 @@ class Product extends Model
             'price' => 'decimal:2',
             'compare_at_price' => 'decimal:2',
             'is_active' => 'boolean',
+            'is_featured' => 'boolean',
             'is_customizable' => 'boolean',
         ];
     }
@@ -99,6 +104,26 @@ class Product extends Model
     public function isVariable(): bool
     {
         return $this->type === self::TYPE_VARIABLE;
+    }
+
+    /**
+     * Image for product grids: main image, else first variation image.
+     */
+    public function listImageUrl(): ?string
+    {
+        if ($this->image) {
+            return asset('storage/'.$this->image);
+        }
+
+        if ($this->relationLoaded('variations')) {
+            $v = $this->variations->first(fn (ProductVariation $v): bool => filled($v->image));
+
+            return ($v && $v->image) ? asset('storage/'.$v->image) : null;
+        }
+
+        $v = $this->variations()->whereNotNull('image')->first();
+
+        return ($v && $v->image) ? asset('storage/'.$v->image) : null;
     }
 
     /**

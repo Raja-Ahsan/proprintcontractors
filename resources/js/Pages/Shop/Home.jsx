@@ -14,6 +14,7 @@ import {
     Award,
     CheckCircle2,
     Globe,
+    Package,
     Palette,
     Sparkles,
     TrendingUp,
@@ -29,7 +30,7 @@ function money(amount) {
     }).format(Number(amount));
 }
 
-export default function Home() {
+export default function Home({ featuredProducts = [] }) {
     useScrollReveal();
 
     const marquee = useMemo(
@@ -251,40 +252,64 @@ export default function Home() {
                     </Link>
                 </div>
                 <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-                    {marketingProducts.slice(0, 8).map((p, i) => (
-                        <Link
-                            key={p.id}
-                            href={route('products.index')}
-                            className="neon-card card-3d reveal-on-scroll group overflow-hidden rounded-2xl border border-border bg-card"
-                            style={{ transitionDelay: `${(i % 4) * 0.08}s` }}
-                        >
-                            <div className="relative aspect-square overflow-hidden bg-secondary">
-                                <img
-                                    src={p.image}
-                                    alt={p.name}
-                                    width={500}
-                                    height={500}
-                                    loading="lazy"
-                                    className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
-                                />
-                                <div className="absolute inset-0 bg-gradient-to-t from-background/40 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
-                                <div className="absolute right-3 top-3 translate-y-2 rounded-full glass px-2 py-1 text-[10px] font-bold uppercase tracking-wider opacity-0 transition-all duration-500 group-hover:translate-y-0 group-hover:opacity-100">
-                                    View →
+                    {featuredProducts.length === 0 ? (
+                        <div className="col-span-full rounded-2xl border border-dashed border-border bg-card/40 px-6 py-12 text-center">
+                            <p className="text-muted-foreground">
+                                Featured products will appear here once your team marks
+                                them in the admin catalog (up to five at a time).
+                            </p>
+                            <Link
+                                href={route('products.index')}
+                                className="mt-4 inline-flex items-center gap-2 font-semibold text-primary"
+                            >
+                                Browse shop <ArrowRight className="h-4 w-4" />
+                            </Link>
+                        </div>
+                    ) : (
+                        featuredProducts.map((p, i) => (
+                            <Link
+                                key={p.slug}
+                                href={route('products.show', p.slug)}
+                                className="neon-card card-3d reveal-on-scroll group overflow-hidden rounded-2xl border border-border bg-card"
+                                style={{ transitionDelay: `${(i % 4) * 0.08}s` }}
+                            >
+                                <div className="relative aspect-square overflow-hidden bg-secondary">
+                                    {p.image_url ? (
+                                        <img
+                                            src={p.image_url}
+                                            alt={p.name}
+                                            width={500}
+                                            height={500}
+                                            loading="lazy"
+                                            className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
+                                        />
+                                    ) : (
+                                        <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-muted-foreground">
+                                            <Package className="h-10 w-10 opacity-40" />
+                                            <span className="text-xs font-medium uppercase tracking-wider">
+                                                No image
+                                            </span>
+                                        </div>
+                                    )}
+                                    <div className="absolute inset-0 bg-gradient-to-t from-background/40 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
+                                    <div className="absolute right-3 top-3 translate-y-2 rounded-full glass px-2 py-1 text-[10px] font-bold uppercase tracking-wider opacity-0 transition-all duration-500 group-hover:translate-y-0 group-hover:opacity-100">
+                                        View →
+                                    </div>
                                 </div>
-                            </div>
-                            <div className="p-5">
-                                <p className="text-xs font-bold uppercase tracking-wider text-primary">
-                                    {p.category}
-                                </p>
-                                <h3 className="mt-1 mb-2 font-bold transition-colors group-hover:text-primary">
-                                    {p.name}
-                                </h3>
-                                <p className="text-2xl font-black gradient-text">
-                                    {money(p.price)}
-                                </p>
-                            </div>
-                        </Link>
-                    ))}
+                                <div className="p-5">
+                                    <p className="text-xs font-bold uppercase tracking-wider text-primary">
+                                        {p.category_name}
+                                    </p>
+                                    <h3 className="mt-1 mb-2 font-bold transition-colors group-hover:text-primary">
+                                        {p.name}
+                                    </h3>
+                                    <p className="text-2xl font-black gradient-text">
+                                        {money(p.price)}
+                                    </p>
+                                </div>
+                            </Link>
+                        ))
+                    )}
                 </div>
                 <div className="mt-8 md:hidden">
                     <Link

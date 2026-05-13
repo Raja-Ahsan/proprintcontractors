@@ -56,6 +56,7 @@ export default function Checkout({
     tax,
     total,
     stripeConfigured,
+    stripePublishableConfigured,
     defaults,
 }) {
     const form = useForm({
@@ -98,20 +99,70 @@ export default function Checkout({
                     your card — card details are not collected on this page.
                 </p>
 
+                <section className="mt-6 rounded-lg border border-border bg-card p-4 shadow-sm">
+                    <h2 className="text-sm font-semibold text-foreground">
+                        Payment method
+                    </h2>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                        This store uses Stripe-hosted checkout (card entry happens on
+                        Stripe after you continue).
+                    </p>
+                    {stripeConfigured ? (
+                        <div className="mt-3 flex items-start gap-3 rounded-md border border-primary/30 bg-primary/5 px-3 py-3">
+                            <span
+                                className="mt-0.5 inline-flex h-4 w-4 shrink-0 rounded-full border-2 border-primary bg-primary"
+                                aria-hidden
+                            />
+                            <div>
+                                <p className="text-sm font-medium text-foreground">
+                                    Card — Visa, Mastercard, Amex, and more
+                                </p>
+                                <p className="mt-0.5 text-xs text-muted-foreground">
+                                    You will complete payment on Stripe&apos;s secure page.
+                                </p>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="mt-3 rounded-md border border-border bg-muted/30 px-3 py-3 text-sm text-muted-foreground">
+                            Card checkout is unavailable until a Stripe{' '}
+                            <strong className="text-foreground">secret</strong> key is
+                            configured (not just the publishable{' '}
+                            <code className="rounded bg-muted px-1">pk_…</code> key).
+                        </div>
+                    )}
+                </section>
+
                 {!stripeConfigured && (
                     <div className="mt-6 rounded-md border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
-                        Card payment is off until a{' '}
-                        <strong className="text-amber-50">Stripe secret key</strong>{' '}
-                        (<code className="rounded bg-amber-500/20 px-1">sk_test_…</code>{' '}
-                        or <code className="rounded bg-amber-500/20 px-1">sk_live_…</code>
-                        ) is saved. In the admin go to{' '}
-                        <strong className="text-amber-50">Settings → Payments</strong> and
-                        paste the secret key (the publishable{' '}
-                        <code className="rounded bg-amber-500/20 px-1">pk_…</code> key
-                        alone is not enough). Alternatively set{' '}
-                        <code className="rounded bg-amber-500/20 px-1">STRIPE_SECRET</code>{' '}
-                        in your <code className="rounded bg-amber-500/20 px-1">.env</code>{' '}
-                        file.
+                        {stripePublishableConfigured ? (
+                            <>
+                                You saved the Stripe{' '}
+                                <strong className="text-amber-50">publishable</strong> key (
+                                <code className="rounded bg-amber-500/20 px-1">pk_…</code>
+                                ), but checkout also needs the{' '}
+                                <strong className="text-amber-50">secret</strong> key (
+                                <code className="rounded bg-amber-500/20 px-1">sk_test_…</code>{' '}
+                                or <code className="rounded bg-amber-500/20 px-1">sk_live_…</code>
+                                ). In the admin go to{' '}
+                                <strong className="text-amber-50">Settings → Payments</strong>,
+                                paste the secret in <strong className="text-amber-50">Secret key</strong>, and save.
+                            </>
+                        ) : (
+                            <>
+                                Card payment is off until a{' '}
+                                <strong className="text-amber-50">Stripe secret key</strong>{' '}
+                                (<code className="rounded bg-amber-500/20 px-1">sk_test_…</code>{' '}
+                                or <code className="rounded bg-amber-500/20 px-1">sk_live_…</code>
+                                ) is saved. In the admin go to{' '}
+                                <strong className="text-amber-50">Settings → Payments</strong> and
+                                paste the secret key (the publishable{' '}
+                                <code className="rounded bg-amber-500/20 px-1">pk_…</code> key
+                                alone is not enough). Alternatively set{' '}
+                                <code className="rounded bg-amber-500/20 px-1">STRIPE_SECRET</code>{' '}
+                                in your <code className="rounded bg-amber-500/20 px-1">.env</code>{' '}
+                                file.
+                            </>
+                        )}
                     </div>
                 )}
 

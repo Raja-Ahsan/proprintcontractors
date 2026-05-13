@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\CartItem;
 use App\Models\Order;
 use App\Models\OrderItem;
-use App\Models\Product;
 use App\Services\CartService;
 use App\Services\CouponService;
 use App\Services\ProductCustomizationService;
@@ -14,6 +13,7 @@ use App\Services\SiteSettings;
 use App\Services\StripeCheckoutService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response as HttpResponse;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -64,6 +64,7 @@ class CheckoutController extends Controller
             'tax' => number_format($tax, 2, '.', ''),
             'total' => number_format($total, 2, '.', ''),
             'stripeConfigured' => $this->stripe->isConfigured(),
+            'stripePublishableConfigured' => $this->stripe->publishableConfigured(),
             'defaults' => [
                 'shipping_name' => $request->user()?->name ?? '',
                 'shipping_email' => $request->user()?->email ?? '',
@@ -72,7 +73,7 @@ class CheckoutController extends Controller
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request): RedirectResponse|HttpResponse
     {
         if (! $this->stripe->isConfigured()) {
             return back()->withErrors([
@@ -256,6 +257,11 @@ class CheckoutController extends Controller
 
         $request->session()->put('pending_checkout_order_id', $order->id);
 
-        return redirect()->away($checkoutUrl);
+        /*
+         * Inertia submits via XHR. A 302 to checkout.stripe.com would be followed
+         * inside Axios and hit Stripe's CORS policy. Inertia::location() returns
+         * 409 + X-Inertia-Location so the client performs a full window navigation.
+         */
+        return Inertia::location($checkoutUrl);
     }
 }

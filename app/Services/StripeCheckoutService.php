@@ -33,6 +33,18 @@ class StripeCheckoutService
         return $this->stripeSecret() !== null;
     }
 
+    /** Publishable key is stored (public); checkout still requires {@see isConfigured()} secret key. */
+    public function publishableConfigured(): bool
+    {
+        if (! SiteSettings::tableReady()) {
+            return false;
+        }
+
+        $k = SiteSettings::get('payment.stripe_publishable_key');
+
+        return is_string($k) && trim($k) !== '';
+    }
+
     public function createCheckoutSession(Order $order): string
     {
         $secret = $this->stripeSecret();

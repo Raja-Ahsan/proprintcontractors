@@ -7,6 +7,7 @@ use App\Models\CartItem;
 use App\Models\Order;
 use App\Services\CartService;
 use App\Services\OrderPaymentService;
+use App\Services\StripeCheckoutService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -19,16 +20,19 @@ class StripeCheckoutController extends Controller
 {
     public function __construct(
         protected OrderPaymentService $payments,
-        protected CartService $cart
+        protected CartService $cart,
+        protected StripeCheckoutService $stripeCheckout
     ) {}
 
     public function success(Request $request): RedirectResponse|Response
     {
-        if (! config('services.stripe.secret')) {
+        $secret = $this->stripeCheckout->stripeSecret();
+
+        if ($secret === null) {
             return redirect()->route('home')->withErrors(['stripe' => 'Payments are not configured.']);
         }
 
-        Stripe::setApiKey(config('services.stripe.secret'));
+        Stripe::setApiKey($secret);
 
         $sessionId = $request->query('session_id');
         if (! $sessionId) {

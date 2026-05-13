@@ -41,6 +41,40 @@ export default function Payments({ settings, secretsSet }) {
             <Head title="Payment settings" />
 
             <div className="w-full space-y-8">
+                <div
+                    className={
+                        secretsSet.stripe_secret && settings.stripe_publishable_key
+                            ? 'rounded-xl border border-emerald-500/35 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100'
+                            : 'rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-100'
+                    }
+                >
+                    {secretsSet.stripe_secret && settings.stripe_publishable_key ? (
+                        <p>
+                            <strong className="text-emerald-50">Checkout ready:</strong>{' '}
+                            both publishable and secret keys are stored. Customers can pay
+                            with card via Stripe Checkout.
+                        </p>
+                    ) : (
+                        <div className="space-y-2">
+                            <p className="font-semibold text-amber-50">
+                                Checkout needs the Stripe secret key
+                            </p>
+                            <p>
+                                Saving only the <code className="rounded bg-amber-500/20 px-1">pk_…</code>{' '}
+                                publishable key does <strong>not</strong> enable payments.
+                                Paste your <code className="rounded bg-amber-500/20 px-1">sk_test_…</code> or{' '}
+                                <code className="rounded bg-amber-500/20 px-1">sk_live_…</code> secret key
+                                below and click Save.
+                            </p>
+                            {secretsSet.stripe_secret && !settings.stripe_publishable_key ? (
+                                <p className="text-xs text-amber-200/90">
+                                    Secret is saved; add a publishable key for completeness (recommended).
+                                </p>
+                            ) : null}
+                        </div>
+                    )}
+                </div>
+
                 <form
                     onSubmit={submit}
                     className="neon-card space-y-5 rounded-2xl border border-border bg-card/80 p-6 shadow-elegant backdrop-blur-sm"

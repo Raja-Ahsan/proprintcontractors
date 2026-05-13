@@ -77,8 +77,8 @@ class SiteSettings
         }
 
         $sec = self::getDecrypted('payment.stripe_secret');
-        if ($sec) {
-            $merge['services.stripe.secret'] = $sec;
+        if (is_string($sec) && trim($sec) !== '') {
+            $merge['services.stripe.secret'] = trim($sec);
         }
 
         $wh = self::getDecrypted('payment.stripe_webhook_secret');

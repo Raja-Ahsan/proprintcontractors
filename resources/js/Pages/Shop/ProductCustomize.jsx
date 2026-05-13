@@ -23,7 +23,14 @@ import {
     ZoomIn,
     ZoomOut,
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+    useCallback,
+    useEffect,
+    useLayoutEffect,
+    useMemo,
+    useRef,
+    useState,
+} from 'react';
 import Swal from 'sweetalert2';
 
 const CANVAS_W = 880;
@@ -140,6 +147,28 @@ export default function ProductCustomize({ product, initialVariation, printArea 
         forceSelectionRedraw((n) => n + 1);
     }, []);
 
+    /**
+     * Fabric copies the host canvas `class` onto `upper-canvas` at construction.
+     * A conditional Tailwind `hidden` on the React canvas therefore freezes the
+     * interaction layer invisible even after `ready` flips — React only updates
+     * the lower canvas. Strip `hidden` and keep the stack visible once the editor
+     * is ready.
+     */
+    useLayoutEffect(() => {
+        if (!ready) {
+            return;
+        }
+
+        const upper = fabricCanvasRef.current?.upperCanvasEl;
+
+        if (!upper) {
+            return;
+        }
+
+        upper.classList.remove('hidden');
+        upper.classList.add('block');
+    }, [ready]);
+
     /** Scroll / resize / CSS scale change offset maps for pointer coordinates (critical inside overflow containers). */
     useEffect(() => {
         const canvas = fabricCanvasRef.current;
@@ -149,15 +178,37 @@ export default function ProductCustomize({ product, initialVariation, printArea 
             return undefined;
         }
 
-        const bump = () => {
-            window.requestAnimationFrame(() => {
+        let cancelled = false;
+        let rafId = null;
+
+        // Fabric v7's dispose() deletes elements.lower; calling calcOffset() afterwards
+        // throws "Cannot read properties of undefined (reading 'el')". Guard against that.
+        const isCanvasAlive = () =>
+            !cancelled &&
+            fabricCanvasRef.current === canvas &&
+            Boolean(canvas.lowerCanvasEl);
+
+        const runBump = () => {
+            rafId = null;
+
+            if (!isCanvasAlive()) {
+                return;
+            }
+
+            try {
                 canvas.calcOffset?.();
-                try {
-                    canvas.calcViewportBoundaries?.();
-                } catch {
-                    /* noop */
-                }
-            });
+                canvas.calcViewportBoundaries?.();
+            } catch {
+                /* canvas was disposed mid-frame */
+            }
+        };
+
+        const bump = () => {
+            if (rafId != null || !isCanvasAlive()) {
+                return;
+            }
+
+            rafId = window.requestAnimationFrame(runBump);
         };
 
         scrollEl.addEventListener('scroll', bump, { passive: true });
@@ -169,11 +220,20 @@ export default function ProductCustomize({ product, initialVariation, printArea 
                 ? new ResizeObserver(bump)
                 : null;
 
-        ro?.observe(wrapEl);
+        if (wrapEl) {
+            ro?.observe(wrapEl);
+        }
+
         bump();
-        window.requestAnimationFrame(bump);
 
         return () => {
+            cancelled = true;
+
+            if (rafId != null) {
+                window.cancelAnimationFrame(rafId);
+                rafId = null;
+            }
+
             scrollEl.removeEventListener('scroll', bump);
             window.removeEventListener('resize', bump);
             ro?.disconnect();
@@ -203,6 +263,9 @@ export default function ProductCustomize({ product, initialVariation, printArea 
         const lower = canvas.lowerCanvasEl;
         const wrap = upper?.parentElement;
 
+        upper?.classList.remove('hidden');
+        upper?.classList.add('block');
+
         for (const el of [upper, lower, wrap]) {
             if (el && 'style' in el) {
                 el.style.touchAction = 'none';
@@ -218,6 +281,11 @@ export default function ProductCustomize({ product, initialVariation, printArea 
             }
             transformRaf = window.requestAnimationFrame(() => {
                 transformRaf = null;
+
+                if (cancelled || fabricCanvasRef.current !== canvas) {
+                    return;
+                }
+
                 syncCanvasSelection();
             });
         };
@@ -341,8 +409,38 @@ export default function ProductCustomize({ product, initialVariation, printArea 
 
         return () => {
             cancelled = true;
-            canvas.dispose();
+
+            if (transformRaf != null) {
+                window.cancelAnimationFrame(transformRaf);
+                transformRaf = null;
+            }
+
+            // Fabric v7's dispose() is async; fire-and-forget but make sure listeners
+            // and ref are detached synchronously so stale callbacks bail out fast.
+            try {
+                canvas.off('selection:created', onSel);
+                canvas.off('selection:updated', onSel);
+                canvas.off('selection:cleared', onSel);
+                canvas.off('object:modified', onModified);
+                canvas.off('object:moving', onDuringTransform);
+                canvas.off('object:scaling', onDuringTransform);
+                canvas.off('object:rotating', onDuringTransform);
+            } catch {
+                /* canvas may already be disposed */
+            }
+
             fabricCanvasRef.current = null;
+
+            try {
+                const result = canvas.dispose();
+                if (result && typeof result.then === 'function') {
+                    result.catch(() => {
+                        /* noop */
+                    });
+                }
+            } catch {
+                /* noop */
+            }
         };
     }, [bgUrl, printArea, syncCanvasSelection]);
 
@@ -789,21 +887,17 @@ export default function ProductCustomize({ product, initialVariation, printArea 
                             ref={fabricScrollParentRef}
                             className="relative overflow-x-auto overflow-y-visible overscroll-x-contain rounded-2xl border border-border bg-zinc-100 select-none dark:bg-zinc-900"
                         >
-                            <div className="mx-auto inline-block rounded-lg bg-muted/30 p-2">
+                            <div className="relative mx-auto inline-block min-h-[240px] w-[min(100%,880px)] max-w-full rounded-lg bg-muted/30 p-2">
+                                <canvas
+                                    ref={canvasElRef}
+                                    className="block h-auto w-full max-w-full touch-none select-none"
+                                />
                                 {!ready && (
-                                    <div className="flex min-h-[240px] w-[min(100%,880px)] items-center justify-center gap-2 text-muted-foreground">
+                                    <div className="absolute inset-0 z-10 flex items-center justify-center gap-2 rounded-lg bg-muted/40 text-muted-foreground backdrop-blur-sm">
                                         <Loader2 className="h-6 w-6 animate-spin" />
                                         Loading editor…
                                     </div>
                                 )}
-                                <canvas
-                                    ref={canvasElRef}
-                                    className={
-                                        ready
-                                            ? 'block h-auto w-full max-w-full touch-none select-none'
-                                            : 'hidden'
-                                    }
-                                />
                             </div>
                             <p className="mx-auto mt-3 max-w-2xl px-2 text-center text-xs text-muted-foreground">
                                 Drag & drop images anywhere on this panel. Orange

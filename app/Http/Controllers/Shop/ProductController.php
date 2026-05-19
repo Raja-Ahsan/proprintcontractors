@@ -5,12 +5,13 @@ namespace App\Http\Controllers\Shop;
 use App\Http\Controllers\Controller;
 use App\Models\Category;
 use App\Models\Product;
+use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class ProductController extends Controller
 {
-    public function index(): Response
+    public function index(Request $request): Response
     {
         $products = Product::query()
             ->with(['category', 'variations:id,product_id,price'])
@@ -24,6 +25,17 @@ class ProductController extends Controller
             ->orderBy('sort_order')
             ->orderBy('name')
             ->get(['id', 'name', 'slug']);
+
+        $initialCategory = 'All';
+        $categorySlug = trim((string) $request->query('category', ''));
+
+        if ($categorySlug !== '') {
+            $match = $categories->firstWhere('slug', $categorySlug);
+
+            if ($match) {
+                $initialCategory = $match->name;
+            }
+        }
 
         $products->each(function (Product $p): void {
             if (! $p->isVariable() || $p->variations->isEmpty()) {
@@ -42,6 +54,7 @@ class ProductController extends Controller
         return Inertia::render('Shop/Products/Index', [
             'products' => $products,
             'categories' => $categories,
+            'initialCategory' => $initialCategory,
         ]);
     }
 

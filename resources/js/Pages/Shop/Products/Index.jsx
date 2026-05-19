@@ -22,10 +22,10 @@ function priceLabel(p) {
     return money(p.price);
 }
 
-export default function Index({ products, categories = [] }) {
+export default function Index({ products, categories = [], initialCategory = 'All' }) {
     useScrollReveal();
 
-    const [cat, setCat] = useState('All');
+    const [cat, setCat] = useState(initialCategory);
     const [q, setQ] = useState('');
 
     const pills = useMemo(() => {

@@ -1,12 +1,9 @@
-import { Kinetic } from '@/Components/Shop/Kinetic';
+﻿import { Kinetic } from '@/Components/Shop/Kinetic';
 import {
     MouseSpotlight,
     useScrollReveal,
 } from '@/Components/Shop/MouseSpotlight';
-import {
-    heroImageUrl,
-    marketingProducts,
-} from '@/data/marketingProducts';
+import { heroImageUrl } from '@/data/marketingProducts';
 import ShopLayout from '@/Layouts/ShopLayout';
 import { Head, Link } from '@inertiajs/react';
 import {
@@ -30,12 +27,61 @@ function money(amount) {
     }).format(Number(amount));
 }
 
-export default function Home({ featuredProducts = [] }) {
+function buildMarqueeLoop(items) {
+    if (items.length === 0) {
+        return [];
+    }
+
+    const loop = [...items];
+
+    while (loop.length < 12) {
+        loop.push(...items);
+    }
+
+    return [...loop, ...loop];
+}
+
+function CategoryMarqueeCard({ category }) {
+    return (
+        <Link
+            href={`${route('products.index')}?category=${encodeURIComponent(category.slug)}`}
+            className="group w-56 shrink-0"
+        >
+            <div className="neon-card relative aspect-square overflow-hidden rounded-2xl bg-secondary">
+                {category.image_url ? (
+                    <img
+                        src={category.image_url}
+                        alt={category.name}
+                        width={400}
+                        height={400}
+                        loading="lazy"
+                        className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
+                    />
+                ) : (
+                    <div className="flex h-full w-full flex-col items-center justify-center gap-2 bg-gradient-to-br from-primary/20 to-secondary text-muted-foreground">
+                        <Package className="h-10 w-10 opacity-50" />
+                    </div>
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-background to-transparent opacity-60" />
+                <div className="absolute bottom-3 left-3 right-3">
+                    <p className="text-xs font-bold uppercase tracking-wider text-primary">
+                        {category.name}
+                    </p>
+                    <p className="truncate font-semibold text-foreground">
+                        {category.subtitle}
+                    </p>
+                </div>
+            </div>
+        </Link>
+    );
+}
+
+export default function Home({ featuredProducts = [], shopCategories = [] }) {
     useScrollReveal();
 
     const marquee = useMemo(
-        () => [...marketingProducts, ...marketingProducts],
-        [],
+        () => buildMarqueeLoop(shopCategories),
+        [shopCategories],
     );
 
     return (
@@ -73,7 +119,7 @@ export default function Home({ featuredProducts = [] }) {
                             </span>
                             <Sparkles className="h-4 w-4 text-primary" />
                             <span className="text-xs font-semibold uppercase tracking-wider">
-                                Print On Demand · Branding · Marketing
+                                Print On Demand Â· Branding Â· Marketing
                             </span>
                         </div>
                         <h1 className="text-5xl font-black leading-[1.05] md:text-7xl lg:text-8xl">
@@ -130,7 +176,7 @@ export default function Home({ featuredProducts = [] }) {
                                             animationDelay: `${0.4 + i * 0.1}s`,
                                         }}
                                     >
-                                        <span className="text-primary">●</span> {t}
+                                        <span className="text-primary">â—</span> {t}
                                     </div>
                                 ))}
                             </div>
@@ -138,57 +184,28 @@ export default function Home({ featuredProducts = [] }) {
                     </div>
                 </div>
 
-                {/* Marquee */}
+                {marquee.length > 0 && (
                 <div className="relative space-y-4 overflow-hidden border-y border-border bg-card/50 py-8">
                     <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-32 bg-gradient-to-r from-background to-transparent" />
                     <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-32 bg-gradient-to-l from-background to-transparent" />
                     <div className="animate-marquee flex w-max gap-6">
-                        {marquee.map((p, i) => (
-                            <div key={`a-${p.id}-${i}`} className="group w-56 shrink-0">
-                                <div className="neon-card relative aspect-square overflow-hidden rounded-2xl bg-secondary">
-                                    <img
-                                        src={p.image}
-                                        alt={p.name}
-                                        width={400}
-                                        height={400}
-                                        loading="lazy"
-                                        className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
-                                    />
-                                    <div className="absolute inset-0 bg-gradient-to-t from-background to-transparent opacity-60" />
-                                    <div className="absolute bottom-3 left-3 right-3">
-                                        <p className="text-xs font-bold uppercase tracking-wider text-primary">
-                                            {p.category}
-                                        </p>
-                                        <p className="truncate font-semibold">{p.name}</p>
-                                    </div>
-                                </div>
-                            </div>
+                        {marquee.map((c, i) => (
+                            <CategoryMarqueeCard
+                                key={`a-${c.slug}-${i}`}
+                                category={c}
+                            />
                         ))}
                     </div>
                     <div className="animate-marquee-reverse flex w-max gap-6">
-                        {[...marquee].reverse().map((p, i) => (
-                            <div key={`b-${p.id}-${i}`} className="group w-56 shrink-0">
-                                <div className="neon-card relative aspect-square overflow-hidden rounded-2xl bg-secondary">
-                                    <img
-                                        src={p.image}
-                                        alt={p.name}
-                                        width={400}
-                                        height={400}
-                                        loading="lazy"
-                                        className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
-                                    />
-                                    <div className="absolute inset-0 bg-gradient-to-t from-background to-transparent opacity-60" />
-                                    <div className="absolute bottom-3 left-3 right-3">
-                                        <p className="text-xs font-bold uppercase tracking-wider text-primary">
-                                            {p.category}
-                                        </p>
-                                        <p className="truncate font-semibold">{p.name}</p>
-                                    </div>
-                                </div>
-                            </div>
+                        {[...marquee].reverse().map((c, i) => (
+                            <CategoryMarqueeCard
+                                key={`b-${c.slug}-${i}`}
+                                category={c}
+                            />
                         ))}
                     </div>
                 </div>
+                )}
             </MouseSpotlight>
 
             {/* FEATURES */}
@@ -293,7 +310,7 @@ export default function Home({ featuredProducts = [] }) {
                                     )}
                                     <div className="absolute inset-0 bg-gradient-to-t from-background/40 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
                                     <div className="absolute right-3 top-3 translate-y-2 rounded-full glass px-2 py-1 text-[10px] font-bold uppercase tracking-wider opacity-0 transition-all duration-500 group-hover:translate-y-0 group-hover:opacity-100">
-                                        View →
+                                        View â†’
                                     </div>
                                 </div>
                                 <div className="p-5">
@@ -351,7 +368,7 @@ export default function Home({ featuredProducts = [] }) {
                                 .
                             </h2>
                             <p className="text-lg text-muted-foreground">
-                                We don&apos;t just print — we build brands. Choose a
+                                We don&apos;t just print â€” we build brands. Choose a
                                 package that fits your stage and let our team handle the
                                 rest.
                             </p>

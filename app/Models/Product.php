@@ -13,7 +13,7 @@ class Product extends Model
     public const TYPE_VARIABLE = 'variable';
 
     /** Maximum products shown on the home “Featured” section (admin cannot exceed this). */
-    public const MAX_FEATURED = 5;
+    public const MAX_FEATURED = 8;
 
     protected $appends = [
         'image_url',

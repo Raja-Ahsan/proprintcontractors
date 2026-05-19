@@ -256,7 +256,7 @@ export default function Home({ featuredProducts = [] }) {
                         <div className="col-span-full rounded-2xl border border-dashed border-border bg-card/40 px-6 py-12 text-center">
                             <p className="text-muted-foreground">
                                 Featured products will appear here once your team marks
-                                them in the admin catalog (up to five at a time).
+                                them in the admin catalog (up to eight at a time).
                             </p>
                             <Link
                                 href={route('products.index')}

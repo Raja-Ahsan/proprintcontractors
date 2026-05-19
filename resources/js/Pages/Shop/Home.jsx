@@ -84,7 +84,7 @@ export default function Home({ featuredProducts = [] }) {
                             </span>
                         </h1>
                         <p className="reveal reveal-3 mx-auto max-w-2xl text-lg text-muted-foreground md:text-xl">
-                            From custom apparel to full brand identity — Pro Print
+                            From custom apparel to full brand identity Pro Print
                             Contractors is the all-in-one platform for contractors who
                             refuse to look ordinary.
                         </p>

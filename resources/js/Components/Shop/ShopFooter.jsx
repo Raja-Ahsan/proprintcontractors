@@ -25,7 +25,7 @@ export function ShopFooter() {
                         <img
                             src={site.footerLogoUrl}
                             alt=""
-                            className="h-10 w-auto max-w-[200px] object-contain"
+                            className="w-full max-w-[200px] object-contain"
                         />
                     ) : (
                         <p className="font-black text-2xl tracking-tight text-foreground">

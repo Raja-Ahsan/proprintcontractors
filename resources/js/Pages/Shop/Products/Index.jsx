@@ -86,7 +86,7 @@ export default function Index({ products, categories = [] }) {
 
             <section className="container mx-auto px-4 py-12">
                 <div className="mb-10 flex flex-col gap-4 lg:flex-row">
-                    <div className="relative flex-1">
+                    <div className="relative w-full max-w-[700px]">
                         <Search className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                         <input
                             type="text"
@@ -96,7 +96,7 @@ export default function Index({ products, categories = [] }) {
                             className="w-full rounded-full border border-border bg-card py-3 pl-11 pr-4 outline-none transition-colors focus:border-primary"
                         />
                     </div>
-                    <div className="flex gap-2 overflow-x-auto pb-2 lg:pb-0">
+                    <div className="flex gap-2 overflow-x-auto pb-2 lg:pb-0 cat-area-wrapper">
                         {pills.map((c) => (
                             <button
                                 key={c}

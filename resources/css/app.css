@@ -281,7 +281,7 @@
         background-size: 200% 100%;
         -webkit-background-clip: text;
         background-clip: text;
-        color: transparent;
+        /* color: transparent; */
         animation: gradient-shift 4s ease-in-out infinite;
     }
 
@@ -656,4 +656,26 @@
 [data-admin-shell] main .max-w-6xl,
 [data-admin-shell] main .max-w-7xl {
     max-width: none !important;
+}
+
+
+
+
+::-webkit-scrollbar {
+    width: 10px;
+}
+
+/* Track */
+::-webkit-scrollbar-track {
+    background: #ff7115;
+}
+
+/* Handle */
+::-webkit-scrollbar-thumb {
+    background: #0b0605;
+}
+
+/* Handle on hover */
+::-webkit-scrollbar-thumb:hover {
+    background: #555;
 }

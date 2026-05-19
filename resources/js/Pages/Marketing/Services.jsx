@@ -58,7 +58,7 @@ export default function Services() {
                                         <div className="pointer-events-none absolute -inset-px rounded-3xl opacity-40 conic-glow" />
                                     )}
                                     {tier.popular && (
-                                        <div className="absolute -top-3 left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-full bg-primary px-4 py-1 text-xs font-bold text-primary-foreground">
+                                        <div className="absolute -top-3 left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-full bg-primary px-4 py-1 pt-[16px] text-xs font-bold text-primary-foreground">
                                             <Sparkles className="h-3 w-3" /> MOST
                                             POPULAR
                                         </div>

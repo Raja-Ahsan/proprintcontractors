@@ -1,5 +1,4 @@
 import { useScrollReveal } from '@/Components/Shop/MouseSpotlight';
-import { catalogCategories } from '@/data/catalog';
 import ShopLayout from '@/Layouts/ShopLayout';
 import { Head, Link } from '@inertiajs/react';
 import { Search } from 'lucide-react';
@@ -23,21 +22,23 @@ function priceLabel(p) {
     return money(p.price);
 }
 
-export default function Index({ products }) {
+export default function Index({ products, categories = [] }) {
     useScrollReveal();
 
     const [cat, setCat] = useState('All');
     const [q, setQ] = useState('');
 
     const pills = useMemo(() => {
-        const fromDb = [
+        if (categories.length > 0) {
+            return ['All', ...categories.map((c) => c.name)];
+        }
+
+        const fromProducts = [
             ...new Set(products.map((p) => p.category?.name).filter(Boolean)),
         ];
-        if (fromDb.length > 0) {
-            return ['All', ...fromDb.sort()];
-        }
-        return catalogCategories;
-    }, [products]);
+
+        return ['All', ...fromProducts.sort()];
+    }, [categories, products]);
 
     const filtered = useMemo(() => {
         return products.filter((p) => {

@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Shop;
 
 use App\Http\Controllers\Controller;
+use App\Models\Category;
 use App\Models\Product;
-use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -15,8 +15,15 @@ class ProductController extends Controller
         $products = Product::query()
             ->with(['category', 'variations:id,product_id,price'])
             ->where('is_active', true)
+            ->whereHas('category', fn ($q) => $q->active())
             ->latest()
             ->get();
+
+        $categories = Category::query()
+            ->active()
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get(['id', 'name', 'slug']);
 
         $products->each(function (Product $p): void {
             if (! $p->isVariable() || $p->variations->isEmpty()) {
@@ -34,6 +41,7 @@ class ProductController extends Controller
 
         return Inertia::render('Shop/Products/Index', [
             'products' => $products,
+            'categories' => $categories,
         ]);
     }
 
@@ -42,6 +50,8 @@ class ProductController extends Controller
         abort_unless($product->is_active, 404);
 
         $product->load(['category', 'variations']);
+
+        abort_unless($product->category?->is_active, 404);
 
         $related = Product::query()
             ->with(['category', 'variations:id,product_id,price'])

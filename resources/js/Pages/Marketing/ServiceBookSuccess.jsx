@@ -8,45 +8,44 @@ function money(amount) {
     }).format(Number(amount));
 }
 
-export default function CheckoutSuccess({ order, quoteMode = false }) {
+export default function ServiceBookSuccess({ booking }) {
     return (
-        <ShopLayout title="Thank you">
+        <ShopLayout title="Booking confirmed">
             <div className="mx-auto max-w-2xl px-4 py-16 text-center sm:px-6 lg:px-8">
                 <p className="text-sm font-semibold uppercase tracking-wide text-emerald-400">
-                    {quoteMode ? 'Order submitted' : 'Payment received'}
+                    Payment received
                 </p>
                 <h1 className="mt-2 text-3xl font-bold text-foreground">Thank you!</h1>
                 <p className="mt-4 text-muted-foreground">
-                    Your order{' '}
+                    Your booking{' '}
                     <span className="font-semibold text-foreground">
-                        {order.order_number}
+                        {booking.booking_number}
                     </span>{' '}
-                    was {quoteMode ? 'submitted' : 'placed'} successfully.
-                    {quoteMode
-                        ? ' We will review your request and contact you at '
-                        : ' A confirmation has been sent to '}
+                    for{' '}
+                    <span className="font-semibold text-foreground">
+                        {booking.service_name}
+                    </span>{' '}
+                    was confirmed. We will reach out at{' '}
                     <span className="font-medium text-foreground">
-                        {order.shipping_email}
-                    </span>
-                    {quoteMode ? ' with pricing.' : '.'}
+                        {booking.customer_email}
+                    </span>{' '}
+                    to get started.
                 </p>
-                {!quoteMode && (
-                    <p className="mt-6 text-lg font-semibold text-foreground">
-                        Total paid: {money(order.total)}
-                    </p>
-                )}
+                <p className="mt-6 text-lg font-semibold text-foreground">
+                    Total paid: {money(booking.total)}
+                </p>
                 <div className="mt-10 flex flex-wrap justify-center gap-4">
                     <Link
-                        href={route('products.index')}
+                        href={route('marketing.services')}
                         className="btn-shimmer inline-flex items-center rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground shadow-glow transition hover:opacity-90"
                     >
-                        Continue shopping
+                        View more services
                     </Link>
                     <Link
-                        href={route('register')}
+                        href={route('home')}
                         className="inline-flex items-center rounded-full border border-border bg-card px-6 py-3 text-sm font-semibold text-foreground transition hover:border-primary"
                     >
-                        Create an account to track orders
+                        Back to home
                     </Link>
                 </div>
             </div>

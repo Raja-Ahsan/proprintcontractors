@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Order;
+use App\Models\ServiceBooking;
 use Stripe\Checkout\Session;
 use Stripe\Stripe;
 
@@ -84,6 +85,52 @@ class StripeCheckoutService
         ]);
 
         $order->update([
+            'stripe_checkout_session_id' => $session->id,
+        ]);
+
+        return $session->url;
+    }
+
+    public function createServiceBookingCheckoutSession(ServiceBooking $booking): string
+    {
+        $secret = $this->stripeSecret();
+
+        if ($secret === null) {
+            throw new \RuntimeException('Stripe secret key is not configured.');
+        }
+
+        Stripe::setApiKey($secret);
+
+        $currency = strtolower((string) config('shop.currency', 'usd'));
+        $unitAmount = (int) round(((float) $booking->total) * 100);
+
+        $session = Session::create([
+            'mode' => 'payment',
+            'success_url' => route('services.booking.success').'?session_id={CHECKOUT_SESSION_ID}',
+            'cancel_url' => route('services.booking.cancel').'?booking='.$booking->id,
+            'customer_email' => $booking->customer_email,
+            'client_reference_id' => (string) $booking->id,
+            'metadata' => [
+                'service_booking_id' => (string) $booking->id,
+                'type' => 'service_booking',
+            ],
+            'payment_method_types' => ['card'],
+            'line_items' => [
+                [
+                    'quantity' => 1,
+                    'price_data' => [
+                        'currency' => $currency,
+                        'unit_amount' => $unitAmount,
+                        'product_data' => [
+                            'name' => $booking->category_name.' — '.$booking->service_name,
+                            'description' => 'Service booking '.$booking->booking_number,
+                        ],
+                    ],
+                ],
+            ],
+        ]);
+
+        $booking->update([
             'stripe_checkout_session_id' => $session->id,
         ]);
 

@@ -9,7 +9,9 @@ use App\Http\Controllers\Admin\OrderController as AdminOrderController;
 use App\Http\Controllers\Admin\PaymentSettingsController as AdminPaymentSettingsController;
 use App\Http\Controllers\Admin\ProductController as AdminProductController;
 use App\Http\Controllers\Admin\SeoSettingsController as AdminSeoSettingsController;
-use App\Http\Controllers\Admin\ShippingSettingsController as AdminShippingSettingsController;
+use App\Http\Controllers\Admin\ServiceBookingController as AdminServiceBookingController;
+use App\Http\Controllers\Admin\ServiceCategoryController as AdminServiceCategoryController;
+use App\Http\Controllers\Admin\ServicePackageController as AdminServicePackageController;
 use App\Http\Controllers\Dashboard\OrderController as CustomerOrderController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Shop\CartController;
@@ -19,16 +21,22 @@ use App\Http\Controllers\Shop\CustomizationUploadController;
 use App\Http\Controllers\Shop\HomeController;
 use App\Http\Controllers\Shop\ProductController;
 use App\Http\Controllers\Shop\ProductCustomizeController;
+use App\Http\Controllers\Shop\ServiceBookingController;
+use App\Http\Controllers\Shop\ServiceBookingStripeController;
+use App\Http\Controllers\Shop\ServicePageController;
 use App\Http\Controllers\Shop\StripeCheckoutController;
+use App\Http\Controllers\Admin\ShippingSettingsController as AdminShippingSettingsController;
 use App\Http\Controllers\StripeWebhookController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
 Route::get('/', HomeController::class)->name('home');
 
-Route::get('/services', fn () => Inertia::render('Marketing/Services'))->name(
-    'marketing.services',
-);
+Route::get('/services', ServicePageController::class)->name('marketing.services');
+Route::get('/services/book/{servicePackage}', [ServiceBookingController::class, 'create'])->name('services.book');
+Route::post('/services/book/{servicePackage}', [ServiceBookingController::class, 'store'])->name('services.book.store');
+Route::get('/services/booking/success', [ServiceBookingStripeController::class, 'success'])->name('services.booking.success');
+Route::get('/services/booking/cancel', [ServiceBookingStripeController::class, 'cancel'])->name('services.booking.cancel');
 Route::get('/about', fn () => Inertia::render('Marketing/About'))->name(
     'marketing.about',
 );
@@ -89,6 +97,13 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
     Route::get('orders', [AdminOrderController::class, 'index'])->name('orders.index');
     Route::get('orders/{order}', [AdminOrderController::class, 'show'])->name('orders.show');
     Route::patch('orders/{order}/status', [AdminOrderController::class, 'updateStatus'])->name('orders.status');
+
+    Route::resource('service-categories', AdminServiceCategoryController::class)->except(['show']);
+    Route::resource('service-packages', AdminServicePackageController::class)->except(['show']);
+
+    Route::get('service-bookings', [AdminServiceBookingController::class, 'index'])->name('service-bookings.index');
+    Route::get('service-bookings/{serviceBooking}', [AdminServiceBookingController::class, 'show'])->name('service-bookings.show');
+    Route::patch('service-bookings/{serviceBooking}/status', [AdminServiceBookingController::class, 'updateStatus'])->name('service-bookings.status');
 
     Route::get('settings/general', [AdminGeneralSettingsController::class, 'edit'])->name('settings.general');
     Route::post('settings/general', [AdminGeneralSettingsController::class, 'update'])->name('settings.general.update');

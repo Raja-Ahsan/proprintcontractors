@@ -98,6 +98,8 @@ function inertiaFieldError(errors, key) {
 }
 
 export default function ProductCustomize({ product, initialVariation, printArea }) {
+    const { site } = usePage().props;
+    const showProductPrices = site?.showProductPrices ?? true;
     const wrapRef = useRef(null);
     const fabricScrollParentRef = useRef(null);
     const canvasElRef = useRef(null);
@@ -840,8 +842,10 @@ export default function ProductCustomize({ product, initialVariation, printArea 
                                 {product.name}
                             </h1>
                             <p className="mt-2 text-sm text-muted-foreground">
-                                {displayPrice != null ? money(displayPrice) : '—'}{' '}
-                                · SKU {sku}
+                                {showProductPrices && displayPrice != null
+                                    ? `${money(displayPrice)} · `
+                                    : ''}
+                                SKU {sku}
                                 {initialVariation && product.variations ? (
                                     <span className="ml-2 text-primary">
                                         {Object.entries(

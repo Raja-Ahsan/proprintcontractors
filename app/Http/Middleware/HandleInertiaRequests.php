@@ -66,6 +66,7 @@ class HandleInertiaRequests extends Middleware
                         'linkedin' => null,
                         'youtube' => null,
                     ],
+                    'showProductPrices' => true,
                 ],
             'seo' => SiteSettings::tableReady()
                 ? SiteSettings::seoForFrontend()

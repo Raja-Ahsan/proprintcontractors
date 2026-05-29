@@ -10,7 +10,8 @@ function money(amount) {
 }
 
 export function MiniCart() {
-    const { cartPreview, cartSubtotal, cartCount } = usePage().props;
+    const { cartPreview, cartSubtotal, cartCount, site } = usePage().props;
+    const showProductPrices = site?.showProductPrices ?? true;
     const [open, setOpen] = useState(false);
     const wrapRef = useRef(null);
 
@@ -114,10 +115,16 @@ export function MiniCart() {
                                                 </p>
                                             ) : null}
                                             <p className="mt-1 text-xs text-muted-foreground">
-                                                Qty {line.quantity} ·{' '}
-                                                <span className="font-semibold text-foreground">
-                                                    {money(line.line_total)}
-                                                </span>
+                                                Qty {line.quantity}
+                                                {showProductPrices && (
+                                                    <>
+                                                        {' '}
+                                                        ·{' '}
+                                                        <span className="font-semibold text-foreground">
+                                                            {money(line.line_total)}
+                                                        </span>
+                                                    </>
+                                                )}
                                             </p>
                                         </div>
                                     </li>
@@ -125,6 +132,7 @@ export function MiniCart() {
                             </ul>
 
                             <div className="space-y-2 border-t border-border bg-secondary/30 px-4 py-3">
+                                {showProductPrices && (
                                 <div className="flex items-center justify-between text-sm">
                                     <span className="text-muted-foreground">
                                         Subtotal
@@ -133,6 +141,7 @@ export function MiniCart() {
                                         {money(cartSubtotal)}
                                     </span>
                                 </div>
+                                )}
                                 <div className="flex flex-col gap-2">
                                     <Link
                                         href={route('cart.index')}

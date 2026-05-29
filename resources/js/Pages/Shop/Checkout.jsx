@@ -3,7 +3,7 @@ import InputLabel from '@/Components/InputLabel';
 import PrimaryButton from '@/Components/PrimaryButton';
 import TextInput from '@/Components/TextInput';
 import ShopLayout from '@/Layouts/ShopLayout';
-import { Link, useForm } from '@inertiajs/react';
+import { Link, useForm, usePage } from '@inertiajs/react';
 
 const COUNTRY_OPTIONS = [
     { code: 'US', name: 'United States' },
@@ -58,7 +58,12 @@ export default function Checkout({
     stripeConfigured,
     stripePublishableConfigured,
     defaults,
+    showProductPrices: showProductPricesProp,
 }) {
+    const { site } = usePage().props;
+    const showProductPrices =
+        showProductPricesProp ?? site?.showProductPrices ?? true;
+
     const form = useForm({
         shipping_name: defaults.shipping_name ?? '',
         shipping_email: defaults.shipping_email ?? '',
@@ -93,12 +98,24 @@ export default function Checkout({
             <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
                 <h1 className="text-3xl font-bold text-foreground">Checkout</h1>
                 <p className="mt-2 text-muted-foreground">
-                    Enter your contact, shipping, and billing details below. After you
-                    submit, you will go to{' '}
-                    <strong className="text-foreground">Stripe Checkout</strong> to enter
-                    your card — card details are not collected on this page.
+                    {showProductPrices ? (
+                        <>
+                            Enter your contact, shipping, and billing details below.
+                            After you submit, you will go to{' '}
+                            <strong className="text-foreground">Stripe Checkout</strong>{' '}
+                            to enter your card — card details are not collected on this
+                            page.
+                        </>
+                    ) : (
+                        <>
+                            Enter your contact and shipping details below to submit
+                            your order. We will review your request and contact you
+                            with pricing — no online payment is required at checkout.
+                        </>
+                    )}
                 </p>
 
+                {showProductPrices && (
                 <section className="mt-6 rounded-lg border border-border bg-card p-4 shadow-sm">
                     <h2 className="text-sm font-semibold text-foreground">
                         Payment method
@@ -131,8 +148,9 @@ export default function Checkout({
                         </div>
                     )}
                 </section>
+                )}
 
-                {!stripeConfigured && (
+                {showProductPrices && !stripeConfigured && (
                     <div className="mt-6 rounded-md border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
                         {stripePublishableConfigured ? (
                             <>
@@ -613,9 +631,14 @@ export default function Checkout({
 
                         <div className="flex flex-wrap gap-4 pt-2">
                             <PrimaryButton
-                                disabled={form.processing || !stripeConfigured}
+                                disabled={
+                                    form.processing ||
+                                    (showProductPrices && !stripeConfigured)
+                                }
                             >
-                                Continue to secure payment
+                                {showProductPrices
+                                    ? 'Continue to secure payment'
+                                    : 'Submit order'}
                             </PrimaryButton>
                             <Link
                                 href={route('cart.index')}
@@ -630,7 +653,7 @@ export default function Checkout({
                         <h2 className="text-lg font-semibold text-foreground">
                             Order summary
                         </h2>
-                        {coupon && (
+                        {coupon && showProductPrices && (
                             <p className="mt-2 text-sm text-primary">
                                 Coupon{' '}
                                 <span className="font-semibold">{coupon.code}</span>{' '}
@@ -678,12 +701,15 @@ export default function Checkout({
                                             </span>
                                         </span>
                                     </span>
+                                    {showProductPrices && (
                                     <span className="font-medium text-foreground">
                                         {money(line.line_total)}
                                     </span>
+                                    )}
                                 </li>
                             ))}
                         </ul>
+                        {showProductPrices ? (
                         <dl className="mt-4 space-y-2 text-sm">
                             <div className="flex justify-between">
                                 <dt className="text-muted-foreground">Subtotal</dt>
@@ -732,6 +758,11 @@ export default function Checkout({
                                 </dd>
                             </div>
                         </dl>
+                        ) : (
+                            <p className="mt-4 text-sm text-muted-foreground">
+                                Pricing will be provided after we review your order.
+                            </p>
+                        )}
                     </aside>
                 </div>
             </div>

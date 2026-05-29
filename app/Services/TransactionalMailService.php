@@ -14,6 +14,35 @@ class TransactionalMailService
         protected MailTemplateRenderer $templates
     ) {}
 
+    protected function ensureQuoteOrderEmailTemplates(): void
+    {
+        $defaults = [
+            'email.order_confirmation_quote.subject' => 'Order {{order_number}} received — {{site_name}}',
+            'email.order_confirmation_quote.body_html' => <<<'HTML'
+<p>Hi,</p>
+<p>Thank you for submitting order <strong>{{order_number}}</strong>.</p>
+{{order_pricing_html}}
+<h3>Items</h3>
+{{order_items_html}}
+<h3>Ship to</h3>
+<p>{{shipping_address}}</p>
+<p>— {{site_name}}</p>
+HTML,
+            'email.order_processing_quote.body_html' => <<<'HTML'
+<p>Hi,</p>
+<p>Your order <strong>{{order_number}}</strong> is now being processed.</p>
+<p>We will contact you with pricing details if we have not already.</p>
+<p>— {{site_name}}</p>
+HTML,
+        ];
+
+        foreach ($defaults as $key => $value) {
+            if (! Setting::get($key)) {
+                Setting::set($key, $value);
+            }
+        }
+    }
+
     public function sendFromKeys(string $subjectKey, string $bodyKey, string $toEmail, array $vars): bool
     {
         $subjectTpl = Setting::get($subjectKey);
@@ -83,10 +112,19 @@ class TransactionalMailService
         }
 
         $vars = $this->templates->orderVars($order);
+        $isQuote = $order->payment_status === 'not_required';
+
+        if ($isQuote) {
+            $this->ensureQuoteOrderEmailTemplates();
+        }
 
         $this->sendFromKeys(
-            'email.order_confirmation.subject',
-            'email.order_confirmation.body_html',
+            $isQuote
+                ? 'email.order_confirmation_quote.subject'
+                : 'email.order_confirmation.subject',
+            $isQuote
+                ? 'email.order_confirmation_quote.body_html'
+                : 'email.order_confirmation.body_html',
             $email,
             $vars
         );
@@ -99,11 +137,20 @@ class TransactionalMailService
             return;
         }
 
+        $vars = $this->templates->orderVars($order);
+        $isQuote = $order->payment_status === 'not_required';
+
+        if ($isQuote) {
+            $this->ensureQuoteOrderEmailTemplates();
+        }
+
         $this->sendFromKeys(
             'email.order_processing.subject',
-            'email.order_processing.body_html',
+            $isQuote
+                ? 'email.order_processing_quote.body_html'
+                : 'email.order_processing.body_html',
             $email,
-            $this->templates->orderVars($order)
+            $vars
         );
     }
 

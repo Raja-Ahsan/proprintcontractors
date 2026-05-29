@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\Order;
+use App\Models\ServiceBooking;
 use App\Services\OrderPaymentService;
+use App\Services\ServiceBookingPaymentService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Stripe\Stripe;
@@ -12,7 +14,8 @@ use Stripe\Webhook;
 class StripeWebhookController extends Controller
 {
     public function __construct(
-        protected OrderPaymentService $payments
+        protected OrderPaymentService $payments,
+        protected ServiceBookingPaymentService $bookingPayments
     ) {}
 
     public function __invoke(Request $request): Response
@@ -38,12 +41,21 @@ class StripeWebhookController extends Controller
             $session = $event->data->object;
             $m = $session->metadata ?? null;
             $meta = $m === null ? [] : (is_array($m) ? $m : $m->toArray());
-            $orderId = (int) ($meta['order_id'] ?? 0);
 
-            $order = Order::query()->find($orderId);
+            if (($meta['type'] ?? '') === 'service_booking') {
+                $bookingId = (int) ($meta['service_booking_id'] ?? 0);
+                $booking = ServiceBooking::query()->find($bookingId);
 
-            if ($order && $order->status === 'awaiting_payment' && $session->payment_status === 'paid') {
-                $this->payments->markPaid($order, $session->id);
+                if ($booking && $booking->status === 'awaiting_payment' && $session->payment_status === 'paid') {
+                    $this->bookingPayments->markPaid($booking, $session->id);
+                }
+            } else {
+                $orderId = (int) ($meta['order_id'] ?? 0);
+                $order = Order::query()->find($orderId);
+
+                if ($order && $order->status === 'awaiting_payment' && $session->payment_status === 'paid') {
+                    $this->payments->markPaid($order, $session->id);
+                }
             }
         }
 

@@ -141,6 +141,7 @@ class SiteSettings
                 'linkedin' => self::get('general.social_linkedin'),
                 'youtube' => self::get('general.social_youtube'),
             ],
+            'showProductPrices' => self::showProductPrices(),
         ];
     }
 
@@ -177,6 +178,14 @@ class SiteSettings
     }
 
     /** Flat shipping cost after free-shipping threshold rules (USD). */
+    /** Whether e-commerce product prices are shown on the storefront (services page unaffected). */
+    public static function showProductPrices(): bool
+    {
+        $val = self::get('general.show_product_prices');
+
+        return $val === null || $val === '' || $val === '1';
+    }
+
     public static function shippingFlatForSubtotal(float $subtotal): float
     {
         $rateRaw = self::get('shipping.flat_rate');

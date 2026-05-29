@@ -1,5 +1,5 @@
 import CustomerAccountLayout from '@/Layouts/CustomerAccountLayout';
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
 
 function money(amount) {
@@ -9,7 +9,29 @@ function money(amount) {
     }).format(Number(amount));
 }
 
+function orderShowsPrices(order, site) {
+    if (order.payment_status === 'not_required') {
+        return false;
+    }
+
+    if (order.payment_status === 'paid') {
+        return true;
+    }
+
+    return site?.showProductPrices ?? true;
+}
+
+function paymentStatusLabel(status) {
+    if (status === 'not_required') {
+        return 'Quote request';
+    }
+
+    return status ?? '—';
+}
+
 export default function Show({ order }) {
+    const { site } = usePage().props;
+    const showPrices = orderShowsPrices(order, site);
     return (
         <CustomerAccountLayout
             header={
@@ -46,7 +68,7 @@ export default function Show({ order }) {
                         <p className="mt-1 text-sm text-foreground">
                             Payment:{' '}
                             <span className="font-semibold capitalize">
-                                {order.payment_status ?? '—'}
+                                {paymentStatusLabel(order.payment_status)}
                             </span>
                         </p>
                     </div>
@@ -96,12 +118,16 @@ export default function Show({ order }) {
                                     <th className="px-6 py-3 text-right text-xs font-bold uppercase tracking-wide text-muted-foreground">
                                         Qty
                                     </th>
-                                    <th className="px-6 py-3 text-right text-xs font-bold uppercase tracking-wide text-muted-foreground">
-                                        Price
-                                    </th>
-                                    <th className="px-6 py-3 text-right text-xs font-bold uppercase tracking-wide text-muted-foreground">
-                                        Total
-                                    </th>
+                                    {showPrices && (
+                                        <>
+                                            <th className="px-6 py-3 text-right text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                                                Price
+                                            </th>
+                                            <th className="px-6 py-3 text-right text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                                                Total
+                                            </th>
+                                        </>
+                                    )}
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-border">
@@ -172,17 +198,22 @@ export default function Show({ order }) {
                                         <td className="px-6 py-3 text-right text-sm tabular-nums text-muted-foreground">
                                             {item.quantity}
                                         </td>
-                                        <td className="px-6 py-3 text-right text-sm tabular-nums text-muted-foreground">
-                                            {money(item.unit_price)}
-                                        </td>
-                                        <td className="px-6 py-3 text-right text-sm font-semibold tabular-nums text-foreground">
-                                            {money(item.line_total)}
-                                        </td>
+                                        {showPrices && (
+                                            <>
+                                                <td className="px-6 py-3 text-right text-sm tabular-nums text-muted-foreground">
+                                                    {money(item.unit_price)}
+                                                </td>
+                                                <td className="px-6 py-3 text-right text-sm font-semibold tabular-nums text-foreground">
+                                                    {money(item.line_total)}
+                                                </td>
+                                            </>
+                                        )}
                                     </tr>
                                 ))}
                             </tbody>
                         </table>
                     </div>
+                    {showPrices ? (
                     <div className="border-t border-border px-6 py-4 text-sm">
                         <div className="flex justify-between">
                             <span className="text-muted-foreground">
@@ -223,6 +254,11 @@ export default function Show({ order }) {
                             </span>
                         </div>
                     </div>
+                    ) : (
+                        <div className="border-t border-border px-6 py-4 text-sm text-muted-foreground">
+                            Pricing will be provided after we review your order.
+                        </div>
+                    )}
                     <div className="border-t border-border px-6 py-4">
                         <Link
                             href={route('dashboard.orders.index')}

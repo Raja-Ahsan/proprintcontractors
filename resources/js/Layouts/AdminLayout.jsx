@@ -3,6 +3,8 @@ import 'sweetalert2/dist/sweetalert2.min.css';
 import { Link, usePage } from '@inertiajs/react';
 import Swal from 'sweetalert2';
 import {
+    Briefcase,
+    CalendarCheck,
     ChevronDown,
     ExternalLink,
     FolderTree,
@@ -47,6 +49,24 @@ const nav = [
         href: () => route('admin.orders.index'),
         routeName: 'admin.orders.*',
         icon: ShoppingBag,
+    },
+    {
+        name: 'Services',
+        href: () => route('admin.service-packages.index'),
+        routeName: 'admin.service-packages.*',
+        icon: Briefcase,
+    },
+    {
+        name: 'Service categories',
+        href: () => route('admin.service-categories.index'),
+        routeName: 'admin.service-categories.*',
+        icon: FolderTree,
+    },
+    {
+        name: 'Service bookings',
+        href: () => route('admin.service-bookings.index'),
+        routeName: 'admin.service-bookings.*',
+        icon: CalendarCheck,
     },
     {
         name: 'Coupons',

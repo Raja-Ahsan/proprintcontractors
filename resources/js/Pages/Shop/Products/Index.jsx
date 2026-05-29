@@ -1,6 +1,6 @@
 import { useScrollReveal } from '@/Components/Shop/MouseSpotlight';
 import ShopLayout from '@/Layouts/ShopLayout';
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import { Search } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
@@ -24,6 +24,8 @@ function priceLabel(p) {
 
 export default function Index({ products, categories = [], initialCategory = 'All' }) {
     useScrollReveal();
+    const { site } = usePage().props;
+    const showProductPrices = site?.showProductPrices ?? true;
 
     const [cat, setCat] = useState(initialCategory);
     const [q, setQ] = useState('');
@@ -145,9 +147,13 @@ export default function Index({ products, categories = [], initialCategory = 'Al
                                     {p.name}
                                 </h3>
                                 <div className="flex items-center justify-between">
-                                    <p className="text-2xl font-black gradient-text">
-                                        {priceLabel(p)}
-                                    </p>
+                                    {showProductPrices ? (
+                                        <p className="text-2xl font-black gradient-text">
+                                            {priceLabel(p)}
+                                        </p>
+                                    ) : (
+                                        <span />
+                                    )}
                                     <span className="text-xs text-muted-foreground">
                                         Customize →
                                     </span>

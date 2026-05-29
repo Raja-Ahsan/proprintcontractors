@@ -67,4 +67,10 @@ class OrderPaymentService
 
         $this->mail->sendOrderConfirmation($order->fresh(['items']));
     }
+
+    /** Quote / inquiry order — no payment collected; stock is not decremented. */
+    public function markSubmittedWithoutPayment(Order $order): void
+    {
+        $this->mail->sendOrderConfirmation($order->fresh(['items']));
+    }
 }

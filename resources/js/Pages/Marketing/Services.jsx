@@ -1,10 +1,9 @@
 import { useScrollReveal } from '@/Components/Shop/MouseSpotlight';
-import { servicePackages } from '@/data/catalog';
 import ShopLayout from '@/Layouts/ShopLayout';
-import { Head } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 import { Check, Sparkles } from 'lucide-react';
 
-export default function Services() {
+export default function Services({ categories = [] }) {
     useScrollReveal();
 
     return (
@@ -39,63 +38,68 @@ export default function Services() {
             </section>
 
             <section className="container mx-auto space-y-20 px-4 py-16">
-                {servicePackages.map((group) => (
-                    <div key={group.category} className="animate-fade-up space-y-8">
-                        <div className="text-center">
-                            <h2 className="text-4xl font-black">{group.category}</h2>
-                        </div>
-                        <div className="grid gap-6 md:grid-cols-3">
-                            {group.tiers.map((tier) => (
-                                <div
-                                    key={tier.name}
-                                    className={`neon-card relative overflow-hidden rounded-3xl border p-8 transition-all tilt-card ${
-                                        tier.popular
-                                            ? 'glass border-primary shadow-glow'
-                                            : 'glass border-border'
-                                    }`}
-                                >
-                                    {tier.popular && (
-                                        <div className="pointer-events-none absolute -inset-px rounded-3xl opacity-40 conic-glow" />
-                                    )}
-                                    {tier.popular && (
-                                        <div className="absolute -top-3 left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-full bg-primary px-4 py-1 pt-[16px] text-xs font-bold text-primary-foreground">
-                                            <Sparkles className="h-3 w-3" /> MOST
-                                            POPULAR
-                                        </div>
-                                    )}
-                                    <h3 className="mb-2 text-xl font-bold">{tier.name}</h3>
-                                    <div className="mb-6">
-                                        <span className="text-5xl font-black gradient-text">
-                                            $
-                                            {tier.price}
-                                        </span>
-                                    </div>
-                                    <ul className="mb-8 space-y-3">
-                                        {tier.features.map((f) => (
-                                            <li
-                                                key={f}
-                                                className="flex items-start gap-2 text-sm"
-                                            >
-                                                <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                                                <span>{f}</span>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                    <button
-                                        type="button"
-                                        className={`w-full rounded-full py-3 font-semibold transition-all ${
+                {categories.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-border py-20 text-center text-muted-foreground">
+                        Service packages are being updated. Please check back soon.
+                    </div>
+                ) : (
+                    categories.map((group) => (
+                        <div key={group.id} className="animate-fade-up space-y-8">
+                            <div className="text-center">
+                                <h2 className="text-4xl font-black">{group.name}</h2>
+                            </div>
+                            <div className="grid gap-6 md:grid-cols-3">
+                                {group.packages.map((tier) => (
+                                    <div
+                                        key={tier.id}
+                                        className={`neon-card relative overflow-hidden rounded-3xl border p-8 transition-all tilt-card ${
                                             tier.popular
-                                                ? 'bg-primary text-primary-foreground shadow-glow hover:scale-105'
-                                                : 'border border-border bg-secondary hover:border-primary'
+                                                ? 'glass border-primary shadow-glow'
+                                                : 'glass border-border'
                                         }`}
                                     >
-                                        Get Started
-                                    </button>
-                                </div>
-                            ))}
+                                        {tier.popular && (
+                                            <div className="pointer-events-none absolute -inset-px rounded-3xl opacity-40 conic-glow" />
+                                        )}
+                                        {tier.popular && (
+                                            <div className="absolute -top-3 left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-full bg-primary px-4 py-1 pt-[16px] text-xs font-bold text-primary-foreground">
+                                                <Sparkles className="h-3 w-3" /> MOST
+                                                POPULAR
+                                            </div>
+                                        )}
+                                        <h3 className="mb-2 text-xl font-bold">{tier.name}</h3>
+                                        <div className="mb-6">
+                                            <span className="text-5xl font-black gradient-text">
+                                                ${Number(tier.price).toLocaleString()}
+                                            </span>
+                                        </div>
+                                        <ul className="mb-8 space-y-3">
+                                            {(tier.features ?? []).map((f) => (
+                                                <li
+                                                    key={f}
+                                                    className="flex items-start gap-2 text-sm"
+                                                >
+                                                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                                                    <span>{f}</span>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                        <Link
+                                            href={route('services.book', tier.slug)}
+                                            className={`block w-full rounded-full py-3 text-center font-semibold transition-all ${
+                                                tier.popular
+                                                    ? 'bg-primary text-primary-foreground shadow-glow hover:scale-105'
+                                                    : 'border border-border bg-secondary hover:border-primary'
+                                            }`}
+                                        >
+                                            Get Started
+                                        </Link>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
-                    </div>
-                ))}
+                    ))
+                )}
             </section>
         </ShopLayout>
     );

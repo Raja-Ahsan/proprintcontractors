@@ -12,7 +12,8 @@ function money(amount) {
 }
 
 export default function Cart({ lines, subtotal, coupon, discount }) {
-    const { errors: pageErrors } = usePage().props;
+    const { errors: pageErrors, site } = usePage().props;
+    const showProductPrices = site?.showProductPrices ?? true;
 
     const couponForm = useForm({
         code: '',
@@ -49,8 +50,9 @@ export default function Cart({ lines, subtotal, coupon, discount }) {
             <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
                 <h1 className="text-3xl font-bold text-foreground">Cart</h1>
                 <p className="mt-2 text-muted-foreground">
-                    Review items, update quantities, apply a coupon, then proceed to
-                    checkout. Payment is completed securely with Stripe.
+                    {showProductPrices
+                        ? 'Review items, update quantities, apply a coupon, then proceed to checkout. Payment is completed securely with Stripe.'
+                        : 'Review items and quantities, then submit your order for a quote. No online payment is required.'}
                 </p>
 
                 {lines.length === 0 ? (
@@ -72,15 +74,19 @@ export default function Cart({ lines, subtotal, coupon, discount }) {
                                         <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">
                                             Product
                                         </th>
-                                        <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                                            Price
-                                        </th>
+                                        {showProductPrices && (
+                                            <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                                Price
+                                            </th>
+                                        )}
                                         <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-muted-foreground">
                                             Qty
                                         </th>
-                                        <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                                            Line
-                                        </th>
+                                        {showProductPrices && (
+                                            <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                                                Line
+                                            </th>
+                                        )}
                                         <th className="px-4 py-3" />
                                     </tr>
                                 </thead>
@@ -138,9 +144,11 @@ export default function Cart({ lines, subtotal, coupon, discount }) {
                                                     </div>
                                                 </div>
                                             </td>
-                                            <td className="px-4 py-4 text-sm text-foreground/90">
-                                                {money(line.unit_price)}
-                                            </td>
+                                            {showProductPrices && (
+                                                <td className="px-4 py-4 text-sm text-foreground/90">
+                                                    {money(line.unit_price)}
+                                                </td>
+                                            )}
                                             <td className="px-4 py-4">
                                                 <input
                                                     type="number"
@@ -156,9 +164,11 @@ export default function Cart({ lines, subtotal, coupon, discount }) {
                                                     className="w-24 rounded-md border-border bg-background text-sm text-foreground shadow-sm focus:border-primary focus:ring-primary"
                                                 />
                                             </td>
-                                            <td className="px-4 py-4 text-right text-sm font-medium text-foreground">
-                                                {money(line.line_total)}
-                                            </td>
+                                            {showProductPrices && (
+                                                <td className="px-4 py-4 text-right text-sm font-medium text-foreground">
+                                                    {money(line.line_total)}
+                                                </td>
+                                            )}
                                             <td className="px-4 py-4 text-right">
                                                 <button
                                                     type="button"
@@ -174,6 +184,7 @@ export default function Cart({ lines, subtotal, coupon, discount }) {
                                     ))}
                                 </tbody>
                             </table>
+                            {showProductPrices && (
                             <div className="border-t border-border px-4 py-4">
                                 <form
                                     onSubmit={applyCoupon}
@@ -227,6 +238,8 @@ export default function Cart({ lines, subtotal, coupon, discount }) {
                                     </p>
                                 )}
                             </div>
+                            )}
+                            {showProductPrices && (
                             <div className="flex flex-col gap-1 border-t border-border bg-secondary/50 px-4 py-4 text-sm">
                                 <div className="flex justify-between">
                                     <span className="text-muted-foreground">
@@ -245,6 +258,7 @@ export default function Cart({ lines, subtotal, coupon, discount }) {
                                     </div>
                                 )}
                             </div>
+                            )}
                         </div>
 
                         <div className="mt-8 flex flex-wrap items-center justify-between gap-4">
@@ -258,7 +272,9 @@ export default function Cart({ lines, subtotal, coupon, discount }) {
                                 href={route('checkout.create')}
                                 className="inline-flex items-center rounded-md border border-transparent bg-primary px-4 py-2 text-xs font-semibold uppercase tracking-widest text-primary-foreground transition duration-150 ease-in-out hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background"
                             >
-                                Proceed to checkout
+                                {showProductPrices
+                                    ? 'Proceed to checkout'
+                                    : 'Submit order request'}
                             </Link>
                         </div>
                     </>

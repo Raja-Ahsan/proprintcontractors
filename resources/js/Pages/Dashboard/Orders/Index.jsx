@@ -1,5 +1,5 @@
 import CustomerAccountLayout from '@/Layouts/CustomerAccountLayout';
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 
 function money(amount) {
     return new Intl.NumberFormat(undefined, {
@@ -8,7 +8,21 @@ function money(amount) {
     }).format(Number(amount));
 }
 
+function orderShowsPrices(order, site) {
+    if (order.payment_status === 'not_required') {
+        return false;
+    }
+
+    if (order.payment_status === 'paid') {
+        return true;
+    }
+
+    return site?.showProductPrices ?? true;
+}
+
 export default function Index({ orders }) {
+    const { site } = usePage().props;
+    const showPricesColumn = site?.showProductPrices ?? true;
     return (
         <CustomerAccountLayout
             header={
@@ -42,9 +56,11 @@ export default function Index({ orders }) {
                                     <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wide text-muted-foreground">
                                         Status
                                     </th>
-                                    <th className="px-4 py-3 text-right text-xs font-bold uppercase tracking-wide text-muted-foreground">
-                                        Total
-                                    </th>
+                                    {showPricesColumn && (
+                                        <th className="px-4 py-3 text-right text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                                            Total
+                                        </th>
+                                    )}
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-border">
@@ -74,9 +90,13 @@ export default function Index({ orders }) {
                                         <td className="px-4 py-3 text-sm capitalize text-foreground">
                                             {order.status}
                                         </td>
-                                        <td className="px-4 py-3 text-right text-sm font-semibold tabular-nums text-foreground">
-                                            {money(order.total)}
-                                        </td>
+                                        {showPricesColumn && (
+                                            <td className="px-4 py-3 text-right text-sm font-semibold tabular-nums text-foreground">
+                                                {orderShowsPrices(order, site)
+                                                    ? money(order.total)
+                                                    : '—'}
+                                            </td>
+                                        )}
                                     </tr>
                                 ))}
                             </tbody>

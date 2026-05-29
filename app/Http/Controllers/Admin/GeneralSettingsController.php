@@ -30,6 +30,7 @@ class GeneralSettingsController extends Controller
                 'footer_logo' => SiteSettings::get('general.footer_logo'),
                 'loader_logo' => SiteSettings::get('general.loader_logo'),
                 'favicon' => SiteSettings::get('general.favicon'),
+                'show_product_prices' => SiteSettings::showProductPrices(),
             ],
             'appearance' => SiteSettings::appearanceForFrontend(),
         ]);
@@ -51,6 +52,7 @@ class GeneralSettingsController extends Controller
             'footer_logo' => ['nullable', 'image', 'max:4096'],
             'loader_logo' => ['nullable', 'image', 'max:4096'],
             'favicon' => ['nullable', 'file', 'max:1024', 'mimes:ico,png,gif,jpg,jpeg,svg,webp'],
+            'show_product_prices' => ['nullable', 'boolean'],
         ]);
 
         Setting::set('general.site_name', (string) $request->input('site_name', ''));
@@ -62,6 +64,7 @@ class GeneralSettingsController extends Controller
         Setting::set('general.social_twitter', (string) $request->input('social_twitter', ''));
         Setting::set('general.social_linkedin', (string) $request->input('social_linkedin', ''));
         Setting::set('general.social_youtube', (string) $request->input('social_youtube', ''));
+        Setting::set('general.show_product_prices', $request->boolean('show_product_prices') ? '1' : '0');
 
         $disk = Storage::disk('public');
 

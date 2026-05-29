@@ -24,6 +24,7 @@ export default function General({ settings, appearance }) {
         footer_logo: null,
         loader_logo: null,
         favicon: null,
+        show_product_prices: settings.show_product_prices ?? true,
     });
 
     function submit(e) {
@@ -110,6 +111,39 @@ export default function General({ settings, appearance }) {
                                 }
                             />
                         </div>
+                    </div>
+
+                    <div className="border-t border-border pt-6">
+                        <p className="mb-1 text-sm font-bold text-foreground">
+                            E-commerce
+                        </p>
+                        <p className="mb-4 text-xs text-muted-foreground">
+                            Controls product pricing on the shop (products, cart, and
+                            checkout). Does not affect the Services page.
+                        </p>
+                        <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border bg-secondary/30 px-4 py-4">
+                            <input
+                                type="checkbox"
+                                checked={form.data.show_product_prices}
+                                onChange={(e) =>
+                                    form.setData(
+                                        'show_product_prices',
+                                        e.target.checked,
+                                    )
+                                }
+                                className="mt-0.5 rounded border-border bg-background text-primary focus:ring-primary"
+                            />
+                            <span>
+                                <span className="block text-sm font-semibold text-foreground">
+                                    Show product prices
+                                </span>
+                                <span className="mt-1 block text-xs text-muted-foreground">
+                                    When disabled, prices are hidden across the shop
+                                    and checkout collects order details only — no
+                                    online payment.
+                                </span>
+                            </span>
+                        </label>
                     </div>
 
                     <div className="border-t border-border pt-6">

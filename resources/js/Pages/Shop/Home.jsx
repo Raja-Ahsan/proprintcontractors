@@ -5,7 +5,7 @@ import {
 } from '@/Components/Shop/MouseSpotlight';
 import { heroImageUrl } from '@/data/marketingProducts';
 import ShopLayout from '@/Layouts/ShopLayout';
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import {
     ArrowRight,
     Award,
@@ -77,6 +77,8 @@ function CategoryMarqueeCard({ category }) {
 }
 
 export default function Home({ featuredProducts = [], shopCategories = [] }) {
+    const { site } = usePage().props;
+    const showProductPrices = site?.showProductPrices ?? true;
     useScrollReveal();
 
     const marquee = useMemo(
@@ -320,9 +322,11 @@ export default function Home({ featuredProducts = [], shopCategories = [] }) {
                                     <h3 className="mt-1 mb-2 font-bold transition-colors group-hover:text-primary">
                                         {p.name}
                                     </h3>
-                                    <p className="text-2xl font-black gradient-text">
-                                        {money(p.price)}
-                                    </p>
+                                    {showProductPrices && (
+                                        <p className="text-2xl font-black gradient-text">
+                                            {money(p.price)}
+                                        </p>
+                                    )}
                                 </div>
                             </Link>
                         ))

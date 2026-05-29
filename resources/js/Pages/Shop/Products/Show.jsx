@@ -1,7 +1,7 @@
 import InputError from '@/Components/InputError';
 import { getCatalogExtraBySlug } from '@/data/catalog';
 import ShopLayout from '@/Layouts/ShopLayout';
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, Link, useForm, usePage } from '@inertiajs/react';
 import {
     ArrowLeft,
     Check,
@@ -62,6 +62,8 @@ function variationForMainProductImage(product) {
 }
 
 export default function Show({ product, related }) {
+    const { site } = usePage().props;
+    const showProductPrices = site?.showProductPrices ?? true;
     const catalogExtra = getCatalogExtraBySlug(product.slug);
 
     const isDbVariable =
@@ -480,16 +482,20 @@ export default function Show({ product, related }) {
                             <h1 className="mt-2 text-4xl font-black md:text-5xl">
                                 {product.name}
                             </h1>
-                            <p className="mt-3 text-3xl font-black gradient-text">
-                                {displayPrice != null
-                                    ? money(displayPrice)
-                                    : '—'}
-                            </p>
-                            {displayCompare ? (
-                                <p className="text-sm text-muted-foreground line-through">
-                                    {money(displayCompare)}
-                                </p>
-                            ) : null}
+                            {showProductPrices && (
+                                <>
+                                    <p className="mt-3 text-3xl font-black gradient-text">
+                                        {displayPrice != null
+                                            ? money(displayPrice)
+                                            : '—'}
+                                    </p>
+                                    {displayCompare ? (
+                                        <p className="text-sm text-muted-foreground line-through">
+                                            {money(displayCompare)}
+                                        </p>
+                                    ) : null}
+                                </>
+                            )}
                         </div>
 
                         {hasDescription ? (
@@ -850,13 +856,15 @@ export default function Show({ product, related }) {
                                         <p className="font-medium text-foreground">
                                             {p.name}
                                         </p>
-                                        <p className="mt-1 text-sm text-muted-foreground">
-                                            {p.price_range &&
-                                            Number(p.price_range.min) !==
-                                                Number(p.price_range.max)
-                                                ? `${money(p.price_range.min)} – ${money(p.price_range.max)}`
-                                                : money(p.price)}
-                                        </p>
+                                        {showProductPrices && (
+                                            <p className="mt-1 text-sm text-muted-foreground">
+                                                {p.price_range &&
+                                                Number(p.price_range.min) !==
+                                                    Number(p.price_range.max)
+                                                    ? `${money(p.price_range.min)} – ${money(p.price_range.max)}`
+                                                    : money(p.price)}
+                                            </p>
+                                        )}
                                     </div>
                                 </Link>
                             ))}

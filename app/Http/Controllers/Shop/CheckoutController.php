@@ -8,6 +8,7 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Services\CartService;
 use App\Services\CouponService;
+use App\Services\OrderPaymentService;
 use App\Services\ProductCustomizationService;
 use App\Services\SiteSettings;
 use App\Services\StripeCheckoutService;
@@ -24,7 +25,8 @@ class CheckoutController extends Controller
         protected CartService $cart,
         protected CouponService $coupons,
         protected StripeCheckoutService $stripe,
-        protected ProductCustomizationService $customization
+        protected ProductCustomizationService $customization,
+        protected OrderPaymentService $payments
     ) {}
 
     public function create(Request $request): Response|RedirectResponse
@@ -36,8 +38,11 @@ class CheckoutController extends Controller
         }
 
         $subtotal = (float) $this->cart->subtotal($request);
+        $showPrices = SiteSettings::showProductPrices();
         $couponId = $request->session()->get('checkout.coupon_id');
-        $coupon = $this->coupons->findValid($couponId ? (int) $couponId : null, $subtotal);
+        $coupon = $showPrices
+            ? $this->coupons->findValid($couponId ? (int) $couponId : null, $subtotal)
+            : null;
         if (! $coupon && $couponId) {
             $request->session()->forget('checkout.coupon_id');
         }
@@ -63,6 +68,7 @@ class CheckoutController extends Controller
             'tax_rate' => $taxRate,
             'tax' => number_format($tax, 2, '.', ''),
             'total' => number_format($total, 2, '.', ''),
+            'showProductPrices' => $showPrices,
             'stripeConfigured' => $this->stripe->isConfigured(),
             'stripePublishableConfigured' => $this->stripe->publishableConfigured(),
             'defaults' => [
@@ -75,7 +81,9 @@ class CheckoutController extends Controller
 
     public function store(Request $request): RedirectResponse|HttpResponse
     {
-        if (! $this->stripe->isConfigured()) {
+        $showPrices = SiteSettings::showProductPrices();
+
+        if ($showPrices && ! $this->stripe->isConfigured()) {
             return back()->withErrors([
                 'stripe' => 'Online payments are not configured. Add Stripe secret keys in Admin → Settings → Payments or set STRIPE_SECRET in your environment.',
             ]);
@@ -141,11 +149,15 @@ class CheckoutController extends Controller
         }
 
         $couponId = $request->session()->get('checkout.coupon_id');
-        $coupon = $this->coupons->findValid($couponId ? (int) $couponId : null, $subtotal);
+        $coupon = $showPrices
+            ? $this->coupons->findValid($couponId ? (int) $couponId : null, $subtotal)
+            : null;
         if ($couponId && ! $coupon) {
             $request->session()->forget('checkout.coupon_id');
 
-            return back()->withErrors(['coupon' => 'Your coupon is no longer valid for this cart.']);
+            if ($showPrices) {
+                return back()->withErrors(['coupon' => 'Your coupon is no longer valid for this cart.']);
+            }
         }
 
         $discount = $coupon ? $this->coupons->discountAmount($coupon, $subtotal) : 0;
@@ -154,7 +166,7 @@ class CheckoutController extends Controller
         $tax = round($afterDiscount * $taxRate, 2);
         $total = round($afterDiscount + $tax + $shippingTotal, 2);
 
-        $order = DB::transaction(function () use ($request, $lines, $validated, $coupon, $subtotal, $discount, $tax, $shippingTotal, $total) {
+        $order = DB::transaction(function () use ($request, $lines, $validated, $coupon, $subtotal, $discount, $tax, $shippingTotal, $total, $showPrices) {
             $billingSame = (bool) $validated['billing_same_as_shipping'];
             $billing = $billingSame ? [
                 'billing_name' => $validated['shipping_name'],
@@ -180,13 +192,13 @@ class CheckoutController extends Controller
                 'order_number' => 'ORD-'.strtoupper(bin2hex(random_bytes(4))).'-'.now()->format('His'),
                 'user_id' => $request->user()?->id,
                 'coupon_id' => $coupon?->id,
-                'status' => 'awaiting_payment',
+                'status' => $showPrices ? 'awaiting_payment' : 'pending',
                 'subtotal' => number_format($subtotal, 2, '.', ''),
                 'discount_amount' => number_format($discount, 2, '.', ''),
                 'tax' => number_format($tax, 2, '.', ''),
                 'shipping_total' => number_format($shippingTotal, 2, '.', ''),
                 'total' => number_format($total, 2, '.', ''),
-                'payment_status' => 'unpaid',
+                'payment_status' => $showPrices ? 'unpaid' : 'not_required',
                 'shipping_name' => $validated['shipping_name'],
                 'shipping_email' => $validated['shipping_email'],
                 'shipping_phone' => $validated['shipping_phone'] ?? null,
@@ -252,6 +264,22 @@ class CheckoutController extends Controller
 
             return $order->fresh(['items']);
         });
+
+        if (! $showPrices) {
+            $this->payments->markSubmittedWithoutPayment($order);
+            $request->session()->forget('checkout.coupon_id');
+
+            if ($request->user()) {
+                return redirect()
+                    ->route('dashboard.orders.show', $order)
+                    ->with('success', 'Your order has been submitted. We will contact you with pricing.');
+            }
+
+            return Inertia::render('Shop/CheckoutSuccess', [
+                'order' => $order->load('items'),
+                'quoteMode' => true,
+            ]);
+        }
 
         $checkoutUrl = $this->stripe->createCheckoutSession($order);
 

@@ -18,6 +18,7 @@ class SettingsSeeder extends Seeder
             'general.phone' => '+1 (555) 123-4567',
             'general.email' => 'hello@proprintcontractors.test',
             'general.address' => "123 Print Lane\nContractor City, ST 12345",
+            'general.show_product_prices' => '1',
             'shipping.tax_rate' => '0',
             'shipping.flat_rate' => '9.99',
             'shipping.free_shipping_minimum' => '',
@@ -48,7 +49,19 @@ HTML,
             'email.order_confirmation.body_html' => <<<'HTML'
 <p>Hi,</p>
 <p>Thank you for your order <strong>{{order_number}}</strong>.</p>
-<p><strong>Total:</strong> ${{order_total}}</p>
+{{order_pricing_html}}
+<h3>Items</h3>
+{{order_items_html}}
+<h3>Ship to</h3>
+<p>{{shipping_address}}</p>
+<p>— {{site_name}}</p>
+HTML,
+
+            'email.order_confirmation_quote.subject' => 'Order {{order_number}} received — {{site_name}}',
+            'email.order_confirmation_quote.body_html' => <<<'HTML'
+<p>Hi,</p>
+<p>Thank you for submitting order <strong>{{order_number}}</strong>.</p>
+{{order_pricing_html}}
 <h3>Items</h3>
 {{order_items_html}}
 <h3>Ship to</h3>
@@ -61,6 +74,13 @@ HTML,
 <p>Hi,</p>
 <p>Your order <strong>{{order_number}}</strong> is now being processed.</p>
 <p>Total paid: ${{order_total}}</p>
+<p>— {{site_name}}</p>
+HTML,
+
+            'email.order_processing_quote.body_html' => <<<'HTML'
+<p>Hi,</p>
+<p>Your order <strong>{{order_number}}</strong> is now being processed.</p>
+<p>We will contact you with pricing details if we have not already.</p>
 <p>— {{site_name}}</p>
 HTML,
 

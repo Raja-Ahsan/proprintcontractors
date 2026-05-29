@@ -121,12 +121,104 @@ class ProductCustomizationService
     }
 
     /**
-     * @return array{fabric:mixed,width?:int,height?:int,variation_id?:int,product_id:int}
+     * @return array{front: array{left: float, top: float, width: float, height: float}, back: array{left: float, top: float, width: float, height: float}}
+     */
+    public function resolvePrintAreas(?array $customPrintArea): array
+    {
+        $default = [
+            'left' => 0.08,
+            'top' => 0.1,
+            'width' => 0.84,
+            'height' => 0.8,
+        ];
+
+        if (! is_array($customPrintArea) || $customPrintArea === []) {
+            return ['front' => $default, 'back' => $default];
+        }
+
+        $front = $this->normalizePrintAreaRect($customPrintArea) ?? $default;
+        $backRaw = $customPrintArea['back'] ?? null;
+        $back = is_array($backRaw) ? ($this->normalizePrintAreaRect($backRaw) ?? $front) : $front;
+
+        return ['front' => $front, 'back' => $back];
+    }
+
+    /**
+     * @return array{left: float, top: float, width: float, height: float}|null
+     */
+    public function normalizePrintAreaRect(array $decoded): ?array
+    {
+        $out = [];
+
+        foreach (['left', 'top', 'width', 'height'] as $k) {
+            if (! array_key_exists($k, $decoded) || ! is_numeric($decoded[$k])) {
+                return null;
+            }
+
+            $v = (float) $decoded[$k];
+
+            if ($v < 0 || $v > 1) {
+                return null;
+            }
+
+            $out[$k] = round($v, 4);
+        }
+
+        return $out;
+    }
+
+    /**
+     * @return array{fabric:mixed,width?:int,height?:int,variation_id?:int,product_id:int,views?:array<string,mixed>}
      *
      * @throws \InvalidArgumentException
      */
     public function normalizeDesign(array $design, int $productId): array
     {
+        if (isset($design['views']) && is_array($design['views'])) {
+            $frontRaw = $design['views']['front']['fabric'] ?? null;
+            $backRaw = $design['views']['back']['fabric'] ?? null;
+
+            if ($frontRaw === null) {
+                throw new \InvalidArgumentException('Invalid customization design.');
+            }
+
+            $frontFabric = $this->normalizeFabricTree($frontRaw);
+
+            if (! isset($frontFabric['objects']) || ! is_array($frontFabric['objects'])) {
+                throw new \InvalidArgumentException('Invalid customization design.');
+            }
+
+            $views = [
+                'front' => [
+                    'fabric' => $frontFabric,
+                    'canvas_width' => isset($design['views']['front']['canvas_width']) ? (int) $design['views']['front']['canvas_width'] : null,
+                    'canvas_height' => isset($design['views']['front']['canvas_height']) ? (int) $design['views']['front']['canvas_height'] : null,
+                ],
+            ];
+
+            if ($backRaw !== null) {
+                $backFabric = $this->normalizeFabricTree($backRaw);
+
+                if (isset($backFabric['objects']) && is_array($backFabric['objects'])) {
+                    $views['back'] = [
+                        'fabric' => $backFabric,
+                        'canvas_width' => isset($design['views']['back']['canvas_width']) ? (int) $design['views']['back']['canvas_width'] : null,
+                        'canvas_height' => isset($design['views']['back']['canvas_height']) ? (int) $design['views']['back']['canvas_height'] : null,
+                    ];
+                }
+            }
+
+            return [
+                'product_id' => $productId,
+                'fabric' => $frontFabric,
+                'views' => $views,
+                'canvas_width' => isset($design['canvas_width']) ? (int) $design['canvas_width'] : null,
+                'canvas_height' => isset($design['canvas_height']) ? (int) $design['canvas_height'] : null,
+                'variation_id' => isset($design['variation_id']) ? (int) $design['variation_id'] : null,
+                'saved_at' => now()->toIso8601String(),
+            ];
+        }
+
         if (! array_key_exists('fabric', $design) || $design['fabric'] === null) {
             throw new \InvalidArgumentException('Invalid customization design.');
         }
@@ -219,6 +311,69 @@ class ProductCustomizationService
     }
 
     /**
+     * Stable hash for cart merge — supports single fabric or front/back views.
+     *
+     * @param  array<string, mixed>  $envelope
+     */
+    public function checksumDesign(array $envelope): ?string
+    {
+        $views = $envelope['views'] ?? null;
+
+        if (is_array($views)) {
+            $payload = [];
+
+            foreach (['front', 'back'] as $side) {
+                $fab = $views[$side]['fabric'] ?? null;
+
+                if (is_array($fab) && $fab !== []) {
+                    $payload[$side] = $this->normalizeFabricTree($fab);
+                }
+            }
+
+            if ($payload === []) {
+                return null;
+            }
+
+            $sorted = $this->deepSortAssocKeysForHash($payload);
+
+            try {
+                return hash('sha256', json_encode(
+                    $sorted,
+                    \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_UNICODE | \JSON_INVALID_UTF8_SUBSTITUTE,
+                    self::JSON_ENCODE_DEPTH,
+                ));
+            } catch (JsonException) {
+                return hash('sha256', serialize($sorted));
+            }
+        }
+
+        return $this->checksumFabric($envelope['fabric'] ?? null);
+    }
+
+    /**
+     * @param  array<string, mixed>  $envelope
+     * @return array<int, string>
+     */
+    public function extractReferencedStoragePathsFromEnvelope(array $envelope): array
+    {
+        $paths = [];
+
+        if (isset($envelope['views']) && is_array($envelope['views'])) {
+            foreach ($envelope['views'] as $view) {
+                if (is_array($view) && isset($view['fabric']) && is_array($view['fabric'])) {
+                    $paths = array_merge($paths, $this->extractReferencedStoragePaths($view['fabric']));
+                }
+            }
+
+            return array_values(array_unique($paths));
+        }
+
+        $fabric = $envelope['fabric'] ?? null;
+
+        return is_array($fabric) ? $this->extractReferencedStoragePaths($fabric) : [];
+    }
+
+    /**
      * @param  mixed  $store
      * @return array<int, string>
      */
@@ -240,12 +395,37 @@ class ProductCustomizationService
             return [];
         }
 
-        $fabric = $store['fabric'] ?? null;
-        $objects = [];
+        if (isset($store['views']) && is_array($store['views'])) {
+            $out = [];
 
-        if (is_array($fabric) && isset($fabric['objects']) && is_array($fabric['objects'])) {
-            $objects = $fabric['objects'];
+            foreach ($store['views'] as $side => $view) {
+                if (! is_array($view)) {
+                    continue;
+                }
+
+                foreach ($this->summarizeTextsFromFabric($view['fabric'] ?? null) as $text) {
+                    $out[] = ucfirst((string) $side).': '.$text;
+                }
+            }
+
+            return $out;
         }
+
+        return $this->summarizeTextsFromFabric($store['fabric'] ?? null);
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    protected function summarizeTextsFromFabric(mixed $fabric): array
+    {
+        if (! is_array($fabric)) {
+            return [];
+        }
+
+        $objects = isset($fabric['objects']) && is_array($fabric['objects'])
+            ? $fabric['objects']
+            : [];
 
         $out = [];
 

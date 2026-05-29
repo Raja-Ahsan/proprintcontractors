@@ -108,6 +108,7 @@ class ProductController extends Controller
             'is_customizable' => ['boolean'],
             'custom_print_area_json' => ['nullable', 'string'],
             'image' => ['nullable', 'image', 'max:4096'],
+            'back_image' => ['nullable', 'image', 'max:4096'],
             'type' => ['required', Rule::in([Product::TYPE_SIMPLE, Product::TYPE_VARIABLE])],
         ];
 
@@ -132,6 +133,8 @@ class ProductController extends Controller
                 'variations_json' => ['required', 'string'],
                 'variation_images' => ['nullable', 'array'],
                 'variation_images.*' => ['nullable', 'image', 'max:4096'],
+                'variation_back_images' => ['nullable', 'array'],
+                'variation_back_images.*' => ['nullable', 'image', 'max:4096'],
             ]));
         }
 
@@ -149,6 +152,11 @@ class ProductController extends Controller
         $imagePath = null;
         if ($request->hasFile('image')) {
             $imagePath = $request->file('image')->store('products', 'public');
+        }
+
+        $backImagePath = null;
+        if ($request->hasFile('back_image')) {
+            $backImagePath = $request->file('back_image')->store('products', 'public');
         }
 
         if ($type === Product::TYPE_SIMPLE) {
@@ -173,6 +181,7 @@ class ProductController extends Controller
                 'compare_at_price' => $validated['compare_at_price'] ?? null,
                 'stock_quantity' => (int) $validated['stock_quantity'],
                 'image' => $imagePath,
+                'back_image' => $backImagePath,
                 'gallery' => $galleryPaths === [] ? null : array_values($galleryPaths),
                 'is_active' => $request->boolean('is_active'),
                 'is_featured' => $request->boolean('is_featured'),
@@ -186,7 +195,7 @@ class ProductController extends Controller
         $defs = $this->parseAttributeDefs((string) $validated['attribute_defs_json']);
         $variations = $this->parseVariationsPayload((string) $validated['variations_json'], $defs);
 
-        DB::transaction(function () use ($validated, $slug, $imagePath, $defs, $variations, $request): void {
+        DB::transaction(function () use ($validated, $slug, $imagePath, $backImagePath, $defs, $variations, $request): void {
             $product = Product::query()->create([
                 'category_id' => (int) $validated['category_id'],
                 'type' => Product::TYPE_VARIABLE,
@@ -199,6 +208,7 @@ class ProductController extends Controller
                 'compare_at_price' => null,
                 'stock_quantity' => 0,
                 'image' => $imagePath,
+                'back_image' => $backImagePath,
                 'gallery' => null,
                 'is_active' => $request->boolean('is_active'),
                 'is_featured' => $request->boolean('is_featured'),
@@ -207,13 +217,12 @@ class ProductController extends Controller
             ]);
 
             foreach ($variations as $idx => $row) {
-                $variationImagePath = null;
-                if ($request->hasFile('variation_images.'.$idx)) {
-                    $vf = $request->file('variation_images.'.$idx);
-                    if ($vf && $vf->isValid()) {
-                        $variationImagePath = $vf->store('products/variations', 'public');
-                    }
-                }
+                $variationImagePath = $this->storeUploadedVariationImage(
+                    $request->file('variation_images.'.$idx),
+                );
+                $variationBackImagePath = $this->storeUploadedVariationImage(
+                    $request->file('variation_back_images.'.$idx),
+                );
 
                 ProductVariation::query()->create([
                     'product_id' => $product->id,
@@ -223,6 +232,7 @@ class ProductController extends Controller
                     'stock_quantity' => $row['stock_quantity'],
                     'attributes' => $row['attributes'],
                     'image' => $variationImagePath,
+                    'back_image' => $variationBackImagePath,
                 ]);
             }
 
@@ -248,6 +258,7 @@ class ProductController extends Controller
             'stock_quantity' => (string) $v->stock_quantity,
             'attributes' => $v->attributes ?? [],
             'image_url' => $v->image_url,
+            'back_image_url' => $v->back_image_url,
         ])->values()->all();
 
         return Inertia::render('Admin/Products/Edit', [
@@ -274,7 +285,9 @@ class ProductController extends Controller
             'is_customizable' => ['boolean'],
             'custom_print_area_json' => ['nullable', 'string'],
             'image' => ['nullable', 'image', 'max:4096'],
+            'back_image' => ['nullable', 'image', 'max:4096'],
             'remove_image' => ['boolean'],
+            'remove_back_image' => ['boolean'],
             'type' => ['required', Rule::in([Product::TYPE_SIMPLE, Product::TYPE_VARIABLE])],
         ];
 
@@ -298,6 +311,8 @@ class ProductController extends Controller
                 'variations_json' => ['required', 'string'],
                 'variation_images' => ['nullable', 'array'],
                 'variation_images.*' => ['nullable', 'image', 'max:4096'],
+                'variation_back_images' => ['nullable', 'array'],
+                'variation_back_images.*' => ['nullable', 'image', 'max:4096'],
             ]));
         }
 
@@ -342,6 +357,8 @@ class ProductController extends Controller
                 $update['image'] = $request->file('image')->store('products', 'public');
             }
 
+            $this->mergeBackImageFromRequest($request, $product, $update);
+
             $gallery = is_array($product->gallery) ? array_values($product->gallery) : [];
             foreach ($validated['gallery_remove_indexes'] ?? [] as $ri) {
                 $i = (int) $ri;
@@ -369,6 +386,9 @@ class ProductController extends Controller
                 foreach ($product->variations as $variation) {
                     if ($variation->image) {
                         Storage::disk('public')->delete($variation->image);
+                    }
+                    if ($variation->back_image) {
+                        Storage::disk('public')->delete($variation->back_image);
                     }
                 }
                 $product->variations()->delete();
@@ -417,6 +437,8 @@ class ProductController extends Controller
                 $update['image'] = $request->file('image')->store('products', 'public');
             }
 
+            $this->mergeBackImageFromRequest($request, $product, $update);
+
             $product->update($update);
 
             $incomingIds = collect($variations)->pluck('id')->filter()->map(fn ($id) => (int) $id)->all();
@@ -425,17 +447,19 @@ class ProductController extends Controller
                 if ($removed->image) {
                     Storage::disk('public')->delete($removed->image);
                 }
+                if ($removed->back_image) {
+                    Storage::disk('public')->delete($removed->back_image);
+                }
             }
             $product->variations()->whereNotIn('id', $incomingIds)->delete();
 
             foreach ($variations as $idx => $row) {
-                $newVariationImagePath = null;
-                if ($request->hasFile('variation_images.'.$idx)) {
-                    $vf = $request->file('variation_images.'.$idx);
-                    if ($vf && $vf->isValid()) {
-                        $newVariationImagePath = $vf->store('products/variations', 'public');
-                    }
-                }
+                $newVariationImagePath = $this->storeUploadedVariationImage(
+                    $request->file('variation_images.'.$idx),
+                );
+                $newVariationBackImagePath = $this->storeUploadedVariationImage(
+                    $request->file('variation_back_images.'.$idx),
+                );
 
                 if (! empty($row['id'])) {
                     $v = ProductVariation::query()
@@ -456,6 +480,16 @@ class ProductController extends Controller
                             }
                             $varUpdate['image'] = $newVariationImagePath;
                         }
+                        if (! empty($row['remove_back_image']) && $v->back_image) {
+                            Storage::disk('public')->delete($v->back_image);
+                            $varUpdate['back_image'] = null;
+                        }
+                        if ($newVariationBackImagePath !== null) {
+                            if ($v->back_image) {
+                                Storage::disk('public')->delete($v->back_image);
+                            }
+                            $varUpdate['back_image'] = $newVariationBackImagePath;
+                        }
                         $v->update($varUpdate);
 
                         continue;
@@ -470,6 +504,7 @@ class ProductController extends Controller
                     'stock_quantity' => $row['stock_quantity'],
                     'attributes' => $row['attributes'],
                     'image' => $newVariationImagePath,
+                    'back_image' => $newVariationBackImagePath,
                 ]);
             }
 
@@ -487,6 +522,10 @@ class ProductController extends Controller
             Storage::disk('public')->delete($product->image);
         }
 
+        if ($product->back_image) {
+            Storage::disk('public')->delete($product->back_image);
+        }
+
         if (is_array($product->gallery)) {
             foreach ($product->gallery as $path) {
                 if (is_string($path) && $path !== '') {
@@ -498,6 +537,9 @@ class ProductController extends Controller
         foreach ($product->variations as $v) {
             if ($v->image) {
                 Storage::disk('public')->delete($v->image);
+            }
+            if ($v->back_image) {
+                Storage::disk('public')->delete($v->back_image);
             }
         }
 
@@ -673,6 +715,10 @@ class ProductController extends Controller
                 }
             }
 
+            if (! empty($row['remove_back_image'])) {
+                $entry['remove_back_image'] = true;
+            }
+
             $result[] = $entry;
         }
 
@@ -719,6 +765,59 @@ class ProductController extends Controller
             $out[$k] = round($v, 4);
         }
 
+        if (isset($decoded['back']) && is_array($decoded['back'])) {
+            $backRect = [];
+            $backValid = true;
+
+            foreach (['left', 'top', 'width', 'height'] as $bk) {
+                if (! array_key_exists($bk, $decoded['back']) || ! is_numeric($decoded['back'][$bk])) {
+                    $backValid = false;
+                    break;
+                }
+
+                $bv = (float) $decoded['back'][$bk];
+
+                if ($bv < 0 || $bv > 1) {
+                    $backValid = false;
+                    break;
+                }
+
+                $backRect[$bk] = round($bv, 4);
+            }
+
+            if ($backValid) {
+                $out['back'] = $backRect;
+            }
+        }
+
         return $out;
+    }
+
+    /**
+     * @param  array<string, mixed>  $update
+     */
+    protected function mergeBackImageFromRequest(Request $request, Product $product, array &$update): void
+    {
+        if ($request->boolean('remove_back_image') && $product->back_image) {
+            Storage::disk('public')->delete($product->back_image);
+            $update['back_image'] = null;
+        }
+
+        if ($request->hasFile('back_image')) {
+            if ($product->back_image) {
+                Storage::disk('public')->delete($product->back_image);
+            }
+
+            $update['back_image'] = $request->file('back_image')->store('products', 'public');
+        }
+    }
+
+    protected function storeUploadedVariationImage(mixed $file): ?string
+    {
+        if ($file && $file->isValid()) {
+            return $file->store('products/variations', 'public');
+        }
+
+        return null;
     }
 }

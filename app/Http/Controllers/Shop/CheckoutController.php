@@ -237,11 +237,8 @@ class CheckoutController extends Controller
                     }
                 }
 
-                $fab = is_array($line->customization_json)
-                    ? ($line->customization_json['fabric'] ?? null)
-                    : null;
-                $assetPaths = is_array($fab)
-                    ? $this->customization->extractReferencedStoragePaths($fab)
+                $assetPaths = is_array($line->customization_json)
+                    ? $this->customization->extractReferencedStoragePathsFromEnvelope($line->customization_json)
                     : [];
 
                 OrderItem::query()->create([

@@ -63,6 +63,8 @@ export default function Edit({
         ),
         image: null,
         remove_image: false,
+        back_image: null,
+        remove_back_image: false,
         attribute_defs_json: JSON.stringify(
             product.variation_attribute_defs ?? [],
         ),
@@ -76,12 +78,15 @@ export default function Edit({
                 stock_quantity: String(v.stock_quantity),
                 attributes: v.attributes ?? {},
                 image_url: v.image_url ?? null,
+                back_image_url: v.back_image_url ?? null,
+                remove_back_image: false,
             })),
         ),
     });
 
     const skuEditedByUser = useRef(true);
     const [variationUploadFiles, setVariationUploadFiles] = useState([]);
+    const [variationBackUploadFiles, setVariationBackUploadFiles] = useState([]);
     const [galleryDraftFiles, setGalleryDraftFiles] = useState([]);
     /** Indices of existing gallery images pending removal when saved */
     const [galleryRemoveIndexes, setGalleryRemoveIndexes] = useState([]);
@@ -267,6 +272,8 @@ export default function Edit({
                 stock_quantity: '',
                 attributes: attrs,
                 image_url: null,
+                back_image_url: null,
+                remove_back_image: false,
             },
         ]);
     }
@@ -274,6 +281,7 @@ export default function Edit({
     function removeVariationRow(idx) {
         setVariationRows(parseVariations().filter((_, i) => i !== idx));
         setVariationUploadFiles((prev) => prev.filter((_, i) => i !== idx));
+        setVariationBackUploadFiles((prev) => prev.filter((_, i) => i !== idx));
     }
 
     function updateVariationRow(idx, patch) {
@@ -307,7 +315,11 @@ export default function Edit({
                 if (!row || typeof row !== 'object') {
                     return row;
                 }
-                const { image_url: _omit, ...rest } = row;
+                const {
+                    image_url: _omitImage,
+                    back_image_url: _omitBackImage,
+                    ...rest
+                } = row;
 
                 return rest;
             });
@@ -325,6 +337,11 @@ export default function Edit({
                 variationUploadFiles.forEach((file, idx) => {
                     if (file instanceof File) {
                         next[`variation_images[${idx}]`] = file;
+                    }
+                });
+                variationBackUploadFiles.forEach((file, idx) => {
+                    if (file instanceof File) {
+                        next[`variation_back_images[${idx}]`] = file;
                     }
                 });
             } else {
@@ -869,53 +886,121 @@ export default function Edit({
                                                 </div>
                                             </div>
 
-                                            <div className="mt-3 max-w-md space-y-2">
-                                                <label className="text-xs font-medium text-muted-foreground">
-                                                    Variation image (optional)
-                                                </label>
-                                                {row.image_url && (
-                                                    <div className="flex items-center gap-3">
-                                                        <img
-                                                            src={row.image_url}
-                                                            alt=""
-                                                            className="h-14 w-14 rounded-md object-cover ring-1 ring-border"
-                                                        />
-                                                        <span className="text-[11px] text-muted-foreground">
-                                                            Current image — upload a
-                                                            file to replace it.
-                                                        </span>
-                                                    </div>
-                                                )}
-                                                <input
-                                                    type="file"
-                                                    accept="image/*"
-                                                    onChange={(e) => {
-                                                        const file =
-                                                            e.target.files?.[0] ??
-                                                            null;
-                                                        setVariationUploadFiles(
-                                                            (prev) => {
-                                                                const next = [
-                                                                    ...prev,
-                                                                ];
-                                                                next[idx] = file;
+                                            <div className="mt-3 grid gap-4 md:grid-cols-2">
+                                                <div className="space-y-2">
+                                                    <label className="text-xs font-medium text-muted-foreground">
+                                                        Front image (optional)
+                                                    </label>
+                                                    {row.image_url && (
+                                                        <div className="flex items-center gap-3">
+                                                            <img
+                                                                src={row.image_url}
+                                                                alt=""
+                                                                className="h-14 w-14 rounded-md object-cover ring-1 ring-border"
+                                                            />
+                                                            <span className="text-[11px] text-muted-foreground">
+                                                                Current front — upload to
+                                                                replace.
+                                                            </span>
+                                                        </div>
+                                                    )}
+                                                    <input
+                                                        type="file"
+                                                        accept="image/*"
+                                                        onChange={(e) => {
+                                                            const file =
+                                                                e.target.files?.[0] ??
+                                                                null;
+                                                            setVariationUploadFiles(
+                                                                (prev) => {
+                                                                    const next = [
+                                                                        ...prev,
+                                                                    ];
+                                                                    next[idx] = file;
 
-                                                                return next;
-                                                            },
-                                                        );
-                                                    }}
-                                                    className="block w-full text-xs text-muted-foreground file:mr-2 file:rounded file:border-0 file:bg-secondary file:px-2 file:py-1 file:text-xs file:font-medium"
-                                                />
-                                                {variationUploadFiles[idx] instanceof
-                                                    File && (
-                                                    <p className="truncate text-[11px] text-muted-foreground">
-                                                        New file:{' '}
-                                                        {
-                                                            variationUploadFiles[idx]
-                                                                .name
-                                                        }
-                                                    </p>
-                                                )}
+                                                                    return next;
+                                                                },
+                                                            );
+                                                        }}
+                                                        className="block w-full text-xs text-muted-foreground file:mr-2 file:rounded file:border-0 file:bg-secondary file:px-2 file:py-1 file:text-xs file:font-medium"
+                                                    />
+                                                    {variationUploadFiles[idx] instanceof
+                                                        File && (
+                                                        <p className="truncate text-[11px] text-muted-foreground">
+                                                            New front:{' '}
+                                                            {
+                                                                variationUploadFiles[idx]
+                                                                    .name
+                                                            }
+                                                        </p>
+                                                    )}
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <label className="text-xs font-medium text-muted-foreground">
+                                                        Back image (optional)
+                                                    </label>
+                                                    {row.back_image_url && (
+                                                        <div className="flex items-center gap-3">
+                                                            <img
+                                                                src={row.back_image_url}
+                                                                alt=""
+                                                                className="h-14 w-14 rounded-md object-cover ring-1 ring-border"
+                                                            />
+                                                            <label className="flex items-center gap-2 text-[11px] text-foreground">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={
+                                                                        row.remove_back_image ??
+                                                                        false
+                                                                    }
+                                                                    onChange={(e) =>
+                                                                        updateVariationRow(
+                                                                            idx,
+                                                                            {
+                                                                                remove_back_image:
+                                                                                    e.target
+                                                                                        .checked,
+                                                                            },
+                                                                        )
+                                                                    }
+                                                                    className="rounded border-border bg-background text-primary shadow-sm focus:ring-primary"
+                                                                />
+                                                                Remove back image
+                                                            </label>
+                                                        </div>
+                                                    )}
+                                                    <input
+                                                        type="file"
+                                                        accept="image/*"
+                                                        onChange={(e) => {
+                                                            const file =
+                                                                e.target.files?.[0] ??
+                                                                null;
+                                                            setVariationBackUploadFiles(
+                                                                (prev) => {
+                                                                    const next = [
+                                                                        ...prev,
+                                                                    ];
+                                                                    next[idx] = file;
+
+                                                                    return next;
+                                                                },
+                                                            );
+                                                        }}
+                                                        className="block w-full text-xs text-muted-foreground file:mr-2 file:rounded file:border-0 file:bg-secondary file:px-2 file:py-1 file:text-xs file:font-medium"
+                                                    />
+                                                    {variationBackUploadFiles[idx] instanceof
+                                                        File && (
+                                                        <p className="truncate text-[11px] text-muted-foreground">
+                                                            New back:{' '}
+                                                            {
+                                                                variationBackUploadFiles[
+                                                                    idx
+                                                                ].name
+                                                            }
+                                                        </p>
+                                                    )}
+                                                </div>
                                             </div>
 
                                             <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -1016,8 +1101,10 @@ export default function Edit({
                             htmlFor="image"
                             value={
                                 product.image_url
-                                    ? 'Replace image'
-                                    : 'Image (optional)'
+                                    ? 'Replace front / featured image'
+                                    : isVariable
+                                      ? 'Default front image (optional)'
+                                      : 'Front / featured image (optional)'
                             }
                         />
                         <input
@@ -1059,6 +1146,65 @@ export default function Edit({
                                 Customize product online
                             </label>
                         </div>
+                        <div className="mt-4 space-y-3 rounded-lg border border-border bg-background/60 p-3">
+                            <p className="text-xs font-semibold text-foreground">
+                                Back view mockup
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                                Default back mockup when a variation has no back
+                                image. Each variation can also set its own back
+                                image below.
+                            </p>
+                            {product.back_image_url && (
+                                <div className="flex items-center gap-3">
+                                    <img
+                                        src={product.back_image_url}
+                                        alt=""
+                                        className="h-20 w-20 rounded object-cover ring-1 ring-border"
+                                    />
+                                    <label className="flex items-center gap-2 text-sm text-foreground">
+                                        <input
+                                            type="checkbox"
+                                            checked={form.data.remove_back_image}
+                                            onChange={(e) =>
+                                                form.setData(
+                                                    'remove_back_image',
+                                                    e.target.checked,
+                                                )
+                                            }
+                                            className="rounded border-border bg-background text-primary shadow-sm focus:ring-primary"
+                                        />
+                                        Remove current back image
+                                    </label>
+                                </div>
+                            )}
+                            <div>
+                                <InputLabel
+                                    htmlFor="back_image"
+                                    value={
+                                        product.back_image_url
+                                            ? 'Replace back image'
+                                            : 'Back image (optional)'
+                                    }
+                                />
+                                <input
+                                    id="back_image"
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={(e) =>
+                                        form.setData(
+                                            'back_image',
+                                            e.target.files?.[0] ?? null,
+                                        )
+                                    }
+                                    className="mt-1 block w-full text-sm text-muted-foreground file:mr-3 file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-primary-foreground"
+                                />
+                                <InputError
+                                    message={form.errors.back_image}
+                                    className="mt-2"
+                                />
+                            </div>
+                        </div>
                         <div className="mt-4">
                             <InputLabel
                                 htmlFor="custom_print_area_json"
@@ -1073,9 +1219,15 @@ export default function Edit({
                                         e.target.value,
                                     )
                                 }
-                                rows={3}
+                                rows={4}
                                 className="mt-1 block w-full rounded-md border-border bg-background font-mono text-xs text-foreground shadow-sm focus:border-primary focus:ring-primary"
                             />
+                            <p className="mt-1 text-xs text-muted-foreground">
+                                Front: left, top, width, height. Optional nested
+                                &quot;back&quot; object for a separate back print
+                                zone, e.g.{' '}
+                                {`{"left":0.08,"top":0.1,"width":0.84,"height":0.8,"back":{"left":0.08,"top":0.1,"width":0.84,"height":0.8}}`}
+                            </p>
                             <InputError
                                 message={form.errors.custom_print_area_json}
                                 className="mt-2"

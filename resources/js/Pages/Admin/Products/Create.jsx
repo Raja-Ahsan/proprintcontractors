@@ -52,6 +52,7 @@ export default function Create({ categories, can_mark_featured, featured_limit }
             height: 0.8,
         }),
         image: null,
+        back_image: null,
         attribute_defs_json: '[]',
         variations_json: '[]',
     });
@@ -59,6 +60,7 @@ export default function Create({ categories, can_mark_featured, featured_limit }
     const skuEditedByUser = useRef(false);
     /** Parallel to variation rows: optional replacement image upload per variation */
     const [variationUploadFiles, setVariationUploadFiles] = useState([]);
+    const [variationBackUploadFiles, setVariationBackUploadFiles] = useState([]);
     /** Extra gallery images for simple products only */
     const [galleryDraftFiles, setGalleryDraftFiles] = useState([]);
 
@@ -248,6 +250,7 @@ export default function Create({ categories, can_mark_featured, featured_limit }
     function removeVariationRow(idx) {
         setVariationRows(parseVariations().filter((_, i) => i !== idx));
         setVariationUploadFiles((prev) => prev.filter((_, i) => i !== idx));
+        setVariationBackUploadFiles((prev) => prev.filter((_, i) => i !== idx));
     }
 
     function updateVariationRow(idx, patch) {
@@ -285,6 +288,11 @@ export default function Create({ categories, can_mark_featured, featured_limit }
                 variationUploadFiles.forEach((file, idx) => {
                     if (file instanceof File) {
                         next[`variation_images[${idx}]`] = file;
+                    }
+                });
+                variationBackUploadFiles.forEach((file, idx) => {
+                    if (file instanceof File) {
+                        next[`variation_back_images[${idx}]`] = file;
                     }
                 });
             } else {
@@ -790,41 +798,79 @@ export default function Create({ categories, can_mark_featured, featured_limit }
                                                 </div>
                                             </div>
 
-                                            <div className="mt-3 max-w-md">
-                                                <label className="text-xs font-medium text-muted-foreground">
-                                                    Variation image (optional)
-                                                </label>
-                                                <input
-                                                    type="file"
-                                                    accept="image/*"
-                                                    onChange={(e) => {
-                                                        const file =
-                                                            e.target.files?.[0] ??
-                                                            null;
-                                                        setVariationUploadFiles(
-                                                            (prev) => {
-                                                                const next =
-                                                                    [...prev];
-                                                                next[idx] =
-                                                                    file;
+                                            <div className="mt-3 grid gap-4 md:grid-cols-2">
+                                                <div>
+                                                    <label className="text-xs font-medium text-muted-foreground">
+                                                        Front image (optional)
+                                                    </label>
+                                                    <input
+                                                        type="file"
+                                                        accept="image/*"
+                                                        onChange={(e) => {
+                                                            const file =
+                                                                e.target.files?.[0] ??
+                                                                null;
+                                                            setVariationUploadFiles(
+                                                                (prev) => {
+                                                                    const next =
+                                                                        [...prev];
+                                                                    next[idx] =
+                                                                        file;
 
-                                                                return next;
-                                                            },
-                                                        );
-                                                    }}
-                                                    className="mt-1 block w-full text-xs text-muted-foreground file:mr-2 file:rounded file:border-0 file:bg-secondary file:px-2 file:py-1 file:text-xs file:font-medium"
-                                                />
-                                                {variationUploadFiles[idx] instanceof
-                                                    File && (
-                                                    <p className="mt-1 truncate text-[11px] text-muted-foreground">
-                                                        Selected:{' '}
-                                                        {
-                                                            variationUploadFiles[
-                                                                idx
-                                                            ].name
-                                                        }
-                                                    </p>
-                                                )}
+                                                                    return next;
+                                                                },
+                                                            );
+                                                        }}
+                                                        className="mt-1 block w-full text-xs text-muted-foreground file:mr-2 file:rounded file:border-0 file:bg-secondary file:px-2 file:py-1 file:text-xs file:font-medium"
+                                                    />
+                                                    {variationUploadFiles[idx] instanceof
+                                                        File && (
+                                                        <p className="mt-1 truncate text-[11px] text-muted-foreground">
+                                                            Selected front:{' '}
+                                                            {
+                                                                variationUploadFiles[
+                                                                    idx
+                                                                ].name
+                                                            }
+                                                        </p>
+                                                    )}
+                                                </div>
+                                                <div>
+                                                    <label className="text-xs font-medium text-muted-foreground">
+                                                        Back image (optional)
+                                                    </label>
+                                                    <input
+                                                        type="file"
+                                                        accept="image/*"
+                                                        onChange={(e) => {
+                                                            const file =
+                                                                e.target.files?.[0] ??
+                                                                null;
+                                                            setVariationBackUploadFiles(
+                                                                (prev) => {
+                                                                    const next =
+                                                                        [...prev];
+                                                                    next[idx] =
+                                                                        file;
+
+                                                                    return next;
+                                                                },
+                                                            );
+                                                        }}
+                                                        className="mt-1 block w-full text-xs text-muted-foreground file:mr-2 file:rounded file:border-0 file:bg-secondary file:px-2 file:py-1 file:text-xs file:font-medium"
+                                                    />
+                                                    {variationBackUploadFiles[idx] instanceof
+                                                        File && (
+                                                        <p className="mt-1 truncate text-[11px] text-muted-foreground">
+                                                            Selected back:{' '}
+                                                            {
+                                                                variationBackUploadFiles[
+                                                                    idx
+                                                                ].name
+                                                            }
+                                                        </p>
+                                                    )}
+                                                </div>
                                             </div>
 
                                             <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -897,7 +943,14 @@ export default function Create({ categories, can_mark_featured, featured_limit }
                     )}
 
                     <div>
-                        <InputLabel htmlFor="image" value="Image (optional)" />
+                        <InputLabel
+                            htmlFor="image"
+                            value={
+                                isVariable
+                                    ? 'Default front image (optional)'
+                                    : 'Front / featured image (optional)'
+                            }
+                        />
                         <input
                             id="image"
                             type="file"
@@ -937,6 +990,38 @@ export default function Create({ categories, can_mark_featured, featured_limit }
                                 Customize product online
                             </label>
                         </div>
+                        <div className="mt-4 space-y-3 rounded-lg border border-border bg-background/60 p-3">
+                            <p className="text-xs font-semibold text-foreground">
+                                Back view mockup
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                                Default back mockup when variations have no back
+                                image. Set per-variation back images in each row
+                                below.
+                            </p>
+                            <div>
+                                <InputLabel
+                                    htmlFor="back_image"
+                                    value="Back image (optional)"
+                                />
+                                <input
+                                    id="back_image"
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={(e) =>
+                                        form.setData(
+                                            'back_image',
+                                            e.target.files?.[0] ?? null,
+                                        )
+                                    }
+                                    className="mt-1 block w-full text-sm text-muted-foreground file:mr-3 file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-primary-foreground"
+                                />
+                                <InputError
+                                    message={form.errors.back_image}
+                                    className="mt-2"
+                                />
+                            </div>
+                        </div>
                         <div className="mt-4">
                             <InputLabel
                                 htmlFor="custom_print_area_json"
@@ -951,9 +1036,13 @@ export default function Create({ categories, can_mark_featured, featured_limit }
                                         e.target.value,
                                     )
                                 }
-                                rows={3}
+                                rows={4}
                                 className="mt-1 block w-full rounded-md border-border bg-background font-mono text-xs text-foreground shadow-sm focus:border-primary focus:ring-primary"
                             />
+                            <p className="mt-1 text-xs text-muted-foreground">
+                                Optional nested &quot;back&quot; key for a separate
+                                back print zone.
+                            </p>
                             <InputError
                                 message={form.errors.custom_print_area_json}
                                 className="mt-2"

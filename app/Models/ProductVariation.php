@@ -9,6 +9,7 @@ class ProductVariation extends Model
 {
     protected $appends = [
         'image_url',
+        'back_image_url',
     ];
 
     protected $fillable = [
@@ -19,6 +20,7 @@ class ProductVariation extends Model
         'stock_quantity',
         'attributes',
         'image',
+        'back_image',
     ];
 
     protected function casts(): array
@@ -37,6 +39,15 @@ class ProductVariation extends Model
         }
 
         return asset('storage/'.$this->image);
+    }
+
+    public function getBackImageUrlAttribute(): ?string
+    {
+        if (! $this->back_image) {
+            return null;
+        }
+
+        return asset('storage/'.$this->back_image);
     }
 
     public function product(): BelongsTo

@@ -50,7 +50,10 @@ class CartController extends Controller
             'quantity' => ['required', 'integer', 'min:1'],
             'customization' => ['nullable', 'array'],
             'customization.design' => ['required_with:customization', 'array'],
-            'customization.design.fabric' => ['required_with:customization', 'array'],
+            'customization.design.fabric' => ['nullable', 'array'],
+            'customization.design.views' => ['nullable', 'array'],
+            'customization.design.views.front.fabric' => ['nullable', 'array'],
+            'customization.design.views.back.fabric' => ['nullable', 'array'],
             'customization.design.canvas_width' => ['nullable', 'integer', 'min:320', 'max:4096'],
             'customization.design.canvas_height' => ['nullable', 'integer', 'min:320', 'max:4096'],
             'customization.preview_png' => ['required_with:customization', 'string', 'max:12000000'],
@@ -70,14 +73,25 @@ class CartController extends Controller
             }
 
             try {
-                $designFromClient = [
-                    'fabric' => $data['customization']['design']['fabric'],
-                    'canvas_width' => $data['customization']['design']['canvas_width'] ?? null,
-                    'canvas_height' => $data['customization']['design']['canvas_height'] ?? null,
-                ];
+                $designPayload = $data['customization']['design'];
+
+                if (isset($designPayload['views']) && is_array($designPayload['views'])) {
+                    $designFromClient = [
+                        'views' => $designPayload['views'],
+                        'canvas_width' => $designPayload['canvas_width'] ?? null,
+                        'canvas_height' => $designPayload['canvas_height'] ?? null,
+                    ];
+                } else {
+                    $designFromClient = [
+                        'fabric' => $designPayload['fabric'],
+                        'canvas_width' => $designPayload['canvas_width'] ?? null,
+                        'canvas_height' => $designPayload['canvas_height'] ?? null,
+                    ];
+                }
+
                 $customEnvelope = $this->customization->normalizeDesign($designFromClient, (int) $product->id);
                 $customEnvelope['variation_id'] = $variationId;
-                $checksum = $this->customization->checksumFabric($customEnvelope['fabric']);
+                $checksum = $this->customization->checksumDesign($customEnvelope);
             } catch (\Throwable $e) {
                 report($e);
 

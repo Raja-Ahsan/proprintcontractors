@@ -17,6 +17,7 @@ class Product extends Model
 
     protected $appends = [
         'image_url',
+        'back_image_url',
         'gallery_urls',
     ];
 
@@ -32,6 +33,7 @@ class Product extends Model
         'compare_at_price',
         'stock_quantity',
         'image',
+        'back_image',
         'gallery',
         'is_active',
         'is_featured',
@@ -75,6 +77,15 @@ class Product extends Model
         }
 
         return asset('storage/'.$this->image);
+    }
+
+    public function getBackImageUrlAttribute(): ?string
+    {
+        if (! $this->back_image) {
+            return null;
+        }
+
+        return asset('storage/'.$this->back_image);
     }
 
     /**

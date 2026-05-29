@@ -12,6 +12,7 @@ import {
 import {
     ArrowLeft,
     Copy,
+    FlipHorizontal2,
     ImagePlus,
     Layers,
     Loader2,
@@ -51,6 +52,60 @@ function printRectPx(area, cw, ch) {
     const height = (area?.height ?? 0.8) * ch;
 
     return { left, top, width, height };
+}
+
+function countEditableInSnapshot(json) {
+    if (!json?.objects || !Array.isArray(json.objects)) {
+        return 0;
+    }
+
+    return json.objects.filter(
+        (o) => o?.name !== 'print-guide' && o?.name !== 'product-mockup',
+    ).length;
+}
+
+function loadImageElement(src) {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        img.src = src;
+    });
+}
+
+async function snapshotToDataUrl(json) {
+    if (!json) {
+        return null;
+    }
+
+    const el = document.createElement('canvas');
+    const temp = new Canvas(el, {
+        width: CANVAS_W,
+        height: CANVAS_H,
+        preserveObjectStacking: true,
+    });
+
+    try {
+        await temp.loadFromJSON(json);
+        temp.renderAll();
+
+        return temp.toDataURL({
+            format: 'png',
+            multiplier: 1.5,
+        });
+    } catch {
+        return null;
+    } finally {
+        try {
+            const result = temp.dispose();
+
+            if (result && typeof result.then === 'function') {
+                await result;
+            }
+        } catch {
+            /* noop */
+        }
+    }
 }
 
 function money(amount) {
@@ -97,14 +152,25 @@ function inertiaFieldError(errors, key) {
     return String(v);
 }
 
-export default function ProductCustomize({ product, initialVariation, printArea }) {
+export default function ProductCustomize({
+    product,
+    initialVariation,
+    printArea,
+    printAreaBack,
+    frontImageUrl,
+    backImageUrl,
+}) {
     const { site } = usePage().props;
     const showProductPrices = site?.showProductPrices ?? true;
     const wrapRef = useRef(null);
     const fabricScrollParentRef = useRef(null);
     const canvasElRef = useRef(null);
     const fabricCanvasRef = useRef(null);
+    const viewSnapshotsRef = useRef({ front: null, back: null });
+    const activeViewRef = useRef('front');
+    const switchingViewRef = useRef(false);
 
+    const [activeView, setActiveView] = useState('front');
     const [ready, setReady] = useState(false);
     const [selected, setSelected] = useState(null);
     const [busy, setBusy] = useState(false);
@@ -122,10 +188,21 @@ export default function ProductCustomize({ product, initialVariation, printArea 
     const page = usePage();
     const pageErrors = page.props.errors ?? {};
 
-    const bgUrl =
-        initialVariation?.image_url ?? product.image_url ?? null;
-
     const variationId = initialVariation?.id ?? null;
+
+    const viewConfig = useCallback(
+        (view) => ({
+            bgUrl:
+                view === 'back'
+                    ? backImageUrl ?? frontImageUrl ?? null
+                    : frontImageUrl ?? null,
+            printArea:
+                view === 'back'
+                    ? printAreaBack ?? printArea
+                    : printArea,
+        }),
+        [backImageUrl, frontImageUrl, printArea, printAreaBack],
+    );
 
     const displayPrice =
         initialVariation != null ? initialVariation.price : product.price;
@@ -242,6 +319,173 @@ export default function ProductCustomize({ product, initialVariation, printArea 
         };
     }, [ready]);
 
+    const saveCurrentViewSnapshot = useCallback(() => {
+        const canvas = fabricCanvasRef.current;
+
+        if (!canvas) {
+            return;
+        }
+
+        viewSnapshotsRef.current[activeViewRef.current] = canvas.toJSON();
+    }, []);
+
+    const initializeView = useCallback(
+        async (view) => {
+            const canvas = fabricCanvasRef.current;
+
+            if (!canvas) {
+                return;
+            }
+
+            switchingViewRef.current = true;
+            canvas.discardActiveObject();
+            setSelected(null);
+            canvas.clear();
+
+            const { bgUrl, printArea: area } = viewConfig(view);
+            const { left, top, width, height } = printRectPx(
+                area,
+                CANVAS_W,
+                CANVAS_H,
+            );
+
+            if (!bgUrl) {
+                canvas.backgroundColor = '#f4f4f5';
+            } else {
+                try {
+                    const img = await FabricImage.fromURL(bgUrl, {
+                        crossOrigin: 'anonymous',
+                    });
+
+                    img.set({
+                        selectable: false,
+                        evented: false,
+                        name: 'product-mockup',
+                    });
+
+                    const scale = Math.max(
+                        CANVAS_W / img.width,
+                        CANVAS_H / img.height,
+                    );
+
+                    img.scale(scale);
+                    img.set({
+                        originX: 'center',
+                        originY: 'center',
+                        left: CANVAS_W / 2,
+                        top: CANVAS_H / 2,
+                    });
+
+                    canvas.add(img);
+                    canvas.sendObjectToBack(img);
+                } catch {
+                    canvas.backgroundColor = '#18181b';
+                }
+            }
+
+            const guide = new Rect({
+                left,
+                top,
+                width,
+                height,
+                originX: 'left',
+                originY: 'top',
+                fill: 'transparent',
+                stroke: 'rgba(249,115,22,0.9)',
+                strokeWidth: 2,
+                strokeDashArray: [8, 6],
+                selectable: false,
+                evented: false,
+                name: 'print-guide',
+            });
+
+            canvas.add(guide);
+
+            const snap = viewSnapshotsRef.current[view];
+
+            if (snap) {
+                await canvas.loadFromJSON(snap);
+            }
+
+            canvas.renderAll();
+            activeViewRef.current = view;
+            switchingViewRef.current = false;
+        },
+        [viewConfig],
+    );
+
+    const switchView = useCallback(
+        async (next) => {
+            if (next === activeViewRef.current || !fabricCanvasRef.current) {
+                return;
+            }
+
+            saveCurrentViewSnapshot();
+            setActiveView(next);
+            await initializeView(next);
+            syncCanvasSelection();
+        },
+        [initializeView, saveCurrentViewSnapshot, syncCanvasSelection],
+    );
+
+    const exportCompositePreview = useCallback(async () => {
+        saveCurrentViewSnapshot();
+
+        const frontJson = viewSnapshotsRef.current.front;
+        const backJson = viewSnapshotsRef.current.back;
+        const frontHas = countEditableInSnapshot(frontJson) > 0;
+        const backHas = countEditableInSnapshot(backJson) > 0;
+
+        if (!frontHas && !backHas) {
+            return '';
+        }
+
+        const frontUrl = frontHas ? await snapshotToDataUrl(frontJson) : null;
+        const backUrl = backHas ? await snapshotToDataUrl(backJson) : null;
+
+        if (frontUrl && !backUrl) {
+            return frontUrl;
+        }
+
+        if (!frontUrl && backUrl) {
+            return backUrl;
+        }
+
+        const pad = 20;
+        const labelH = 24;
+        const mult = 1.5;
+        const tileW = CANVAS_W * mult;
+        const tileH = CANVAS_H * mult;
+        const totalW = tileW * 2 + pad * 3;
+        const totalH = tileH + labelH + pad * 2;
+        const c = document.createElement('canvas');
+
+        c.width = totalW;
+        c.height = totalH;
+
+        const ctx = c.getContext('2d');
+
+        if (!ctx) {
+            return frontUrl ?? backUrl ?? '';
+        }
+
+        ctx.fillStyle = '#f4f4f5';
+        ctx.fillRect(0, 0, totalW, totalH);
+        ctx.fillStyle = '#71717a';
+        ctx.font = '600 14px Inter, system-ui, sans-serif';
+        ctx.textAlign = 'center';
+
+        const imgFront = await loadImageElement(frontUrl);
+        const imgBack = await loadImageElement(backUrl);
+
+        ctx.fillText('Front', pad + tileW / 2, pad + 16);
+        ctx.drawImage(imgFront, pad, pad + labelH, tileW, tileH);
+        ctx.fillText('Back', pad * 2 + tileW + tileW / 2, pad + 16);
+        ctx.drawImage(imgBack, pad * 2 + tileW, pad + labelH, tileW, tileH);
+
+        return c.toDataURL('image/png');
+    }, [saveCurrentViewSnapshot]);
+
     useEffect(() => {
         let cancelled = false;
 
@@ -317,97 +561,11 @@ export default function ProductCustomize({ product, initialVariation, printArea 
         canvas.on('object:scaling', onDuringTransform);
         canvas.on('object:rotating', onDuringTransform);
 
-        const { left, top, width, height } = printRectPx(
-            printArea,
-            CANVAS_W,
-            CANVAS_H,
-        );
-
-        const setup = async () => {
-            if (!bgUrl) {
-                canvas.backgroundColor = '#f4f4f5';
-                const guideEmpty = new Rect({
-                    left,
-                    top,
-                    width,
-                    height,
-                    originX: 'left',
-                    originY: 'top',
-                    fill: 'transparent',
-                    stroke: 'rgba(249,115,22,0.9)',
-                    strokeWidth: 2,
-                    strokeDashArray: [8, 6],
-                    selectable: false,
-                    evented: false,
-                    name: 'print-guide',
-                });
-
-                canvas.add(guideEmpty);
-                canvas.renderAll();
-                if (!cancelled) {
-                    setReady(true);
-                }
-
-                return;
+        void initializeView('front').then(() => {
+            if (!cancelled) {
+                setReady(true);
             }
-
-            try {
-                const img = await FabricImage.fromURL(bgUrl, {
-                    crossOrigin: 'anonymous',
-                });
-
-                if (cancelled) {
-                    return;
-                }
-
-                img.set({
-                    selectable: false,
-                    evented: false,
-                    name: 'product-mockup',
-                });
-
-                const scale = Math.max(
-                    CANVAS_W / img.width,
-                    CANVAS_H / img.height,
-                );
-
-                img.scale(scale);
-                img.set({
-                    originX: 'center',
-                    originY: 'center',
-                    left: CANVAS_W / 2,
-                    top: CANVAS_H / 2,
-                });
-
-                canvas.add(img);
-                canvas.sendObjectToBack(img);
-            } catch {
-                canvas.backgroundColor = '#18181b';
-            }
-
-            const guide = new Rect({
-                left,
-                top,
-                width,
-                height,
-                originX: 'left',
-                originY: 'top',
-                fill: 'transparent',
-                stroke: 'rgba(249,115,22,0.9)',
-                strokeWidth: 2,
-                strokeDashArray: [8, 6],
-                selectable: false,
-                evented: false,
-                name: 'print-guide',
-            });
-
-            canvas.add(guide);
-
-            canvas.renderAll();
-            setReady(true);
-        };
-
-        void setup();
+        });
 
         return () => {
             cancelled = true;
@@ -444,7 +602,7 @@ export default function ProductCustomize({ product, initialVariation, printArea 
                 /* noop */
             }
         };
-    }, [bgUrl, printArea, syncCanvasSelection]);
+    }, [initializeView, syncCanvasSelection]);
 
     function editableObjects(canvas) {
         return canvas.getObjects().filter((o) => {
@@ -482,8 +640,9 @@ export default function ProductCustomize({ product, initialVariation, printArea 
             return;
         }
 
+        const { printArea: area } = viewConfig(activeViewRef.current);
         const { left: pl, top: pt, width: pw, height: ph } = printRectPx(
-            printArea,
+            area,
             CANVAS_W,
             CANVAS_H,
         );
@@ -547,7 +706,8 @@ export default function ProductCustomize({ product, initialVariation, printArea 
             return;
         }
 
-        const { left: pl, top: pt } = printRectPx(printArea, CANVAS_W, CANVAS_H);
+        const { printArea: area } = viewConfig(activeViewRef.current);
+        const { left: pl, top: pt } = printRectPx(area, CANVAS_W, CANVAS_H);
         const t = new IText('Your text', {
             left: pl + 24,
             top: pt + 24,
@@ -646,41 +806,28 @@ export default function ProductCustomize({ product, initialVariation, printArea 
         canvas.renderAll();
     }
 
-    function exportPreview() {
-        const canvas = fabricCanvasRef.current;
-
-        if (!canvas) {
-            return '';
-        }
+    async function openPreviewModal() {
+        setBusy(true);
 
         try {
-            return canvas.toDataURL({
-                format: 'png',
-                multiplier: 1.5,
-            });
-        } catch {
-            return '';
+            const dataUrl = await exportCompositePreview();
+
+            setPreviewModal({ open: true, dataUrl, zoom: 1 });
+        } finally {
+            setBusy(false);
         }
-    }
-
-    function openPreviewModal() {
-        const dataUrl = exportPreview();
-
-        setPreviewModal({ open: true, dataUrl, zoom: 1 });
     }
 
     function saveDraftLocal() {
-        const canvas = fabricCanvasRef.current;
-
-        if (!canvas) {
-            return;
-        }
+        saveCurrentViewSnapshot();
 
         try {
             localStorage.setItem(
                 draftKey,
                 JSON.stringify({
-                    fabric: canvas.toJSON(),
+                    version: 2,
+                    views: viewSnapshotsRef.current,
+                    activeView: activeViewRef.current,
                     savedAt: new Date().toISOString(),
                 }),
             );
@@ -699,13 +846,7 @@ export default function ProductCustomize({ product, initialVariation, printArea 
         }
     }
 
-    function loadDraftLocal() {
-        const canvas = fabricCanvasRef.current;
-
-        if (!canvas) {
-            return;
-        }
-
+    async function loadDraftLocal() {
         const raw = localStorage.getItem(draftKey);
 
         if (!raw) {
@@ -720,10 +861,31 @@ export default function ProductCustomize({ product, initialVariation, printArea 
         try {
             const parsed = JSON.parse(raw);
 
-            void canvas.loadFromJSON(parsed.fabric).then(() => {
-                canvas.renderAll();
+            if (parsed.version === 2 && parsed.views) {
+                viewSnapshotsRef.current = {
+                    front: parsed.views.front ?? null,
+                    back: parsed.views.back ?? null,
+                };
+
+                const nextView =
+                    parsed.activeView === 'back' ? 'back' : 'front';
+
+                setActiveView(nextView);
+                await initializeView(nextView);
                 syncCanvasSelection();
-            });
+            } else if (parsed.fabric) {
+                viewSnapshotsRef.current = {
+                    front: parsed.fabric,
+                    back: null,
+                };
+
+                setActiveView('front');
+                await initializeView('front');
+                syncCanvasSelection();
+            } else {
+                throw new Error('Invalid draft');
+            }
+
             void Swal.fire({
                 icon: 'success',
                 title: 'Draft loaded',
@@ -738,16 +900,19 @@ export default function ProductCustomize({ product, initialVariation, printArea 
         }
     }
 
-    function addToCart() {
-        const canvas = fabricCanvasRef.current;
-
-        if (!canvas || !ready) {
+    async function addToCart() {
+        if (!fabricCanvasRef.current || !ready) {
             return;
         }
 
-        const objs = editableObjects(canvas);
+        saveCurrentViewSnapshot();
 
-        if (objs.length === 0) {
+        const frontCount = countEditableInSnapshot(
+            viewSnapshotsRef.current.front,
+        );
+        const backCount = countEditableInSnapshot(viewSnapshotsRef.current.back);
+
+        if (frontCount + backCount === 0) {
             void Swal.fire({
                 icon: 'warning',
                 title: 'Add artwork or text first',
@@ -756,9 +921,18 @@ export default function ProductCustomize({ product, initialVariation, printArea 
             return;
         }
 
-        const preview_png = exportPreview();
+        setCartSubmitting(true);
+
+        let preview_png = '';
+
+        try {
+            preview_png = await exportCompositePreview();
+        } catch {
+            preview_png = '';
+        }
 
         if (!preview_png || preview_png.length < 64) {
+            setCartSubmitting(false);
             void Swal.fire({
                 icon: 'error',
                 title: 'Could not export preview',
@@ -768,22 +942,36 @@ export default function ProductCustomize({ product, initialVariation, printArea 
             return;
         }
 
+        const design = {
+            views: {
+                front: {
+                    fabric: viewSnapshotsRef.current.front,
+                    canvas_width: CANVAS_W,
+                    canvas_height: CANVAS_H,
+                },
+            },
+            canvas_width: CANVAS_W,
+            canvas_height: CANVAS_H,
+            variation_id: variationId,
+        };
+
+        if (backCount > 0 && viewSnapshotsRef.current.back) {
+            design.views.back = {
+                fabric: viewSnapshotsRef.current.back,
+                canvas_width: CANVAS_W,
+                canvas_height: CANVAS_H,
+            };
+        }
+
         const payload = {
             product_id: product.id,
             product_variation_id: variationId,
             quantity: qty,
             customization: {
-                design: {
-                    fabric: canvas.toJSON(),
-                    canvas_width: CANVAS_W,
-                    canvas_height: CANVAS_H,
-                    variation_id: variationId,
-                },
+                design,
                 preview_png,
             },
         };
-
-        setCartSubmitting(true);
 
         router.post(route('cart.store'), payload, {
             preserveScroll: true,
@@ -887,6 +1075,38 @@ export default function ProductCustomize({ product, initialVariation, printArea 
 
                 <div className="mx-auto grid max-w-7xl gap-8 px-4 py-8 lg:grid-cols-[1fr_minmax(18rem,22rem)]">
                     <div className="rounded-3xl border border-border bg-card p-4 shadow-elegant lg:p-6">
+                        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                            <p className="text-sm font-bold text-foreground">
+                                Design view
+                            </p>
+                            <div className="inline-flex rounded-full border border-border bg-secondary p-1">
+                                <button
+                                    type="button"
+                                    onClick={() => void switchView('front')}
+                                    disabled={!ready || activeView === 'front'}
+                                    className={`inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-semibold transition ${
+                                        activeView === 'front'
+                                            ? 'bg-primary text-primary-foreground shadow-sm'
+                                            : 'text-muted-foreground hover:text-foreground'
+                                    } disabled:opacity-60`}
+                                >
+                                    Front
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => void switchView('back')}
+                                    disabled={!ready || activeView === 'back'}
+                                    className={`inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-semibold transition ${
+                                        activeView === 'back'
+                                            ? 'bg-primary text-primary-foreground shadow-sm'
+                                            : 'text-muted-foreground hover:text-foreground'
+                                    } disabled:opacity-60`}
+                                >
+                                    <FlipHorizontal2 className="h-3.5 w-3.5" />
+                                    Back
+                                </button>
+                            </div>
+                        </div>
                         <div
                             ref={fabricScrollParentRef}
                             className="relative overflow-x-auto overflow-y-visible overscroll-x-contain rounded-2xl border border-border bg-zinc-100 select-none dark:bg-zinc-900"
@@ -904,8 +1124,9 @@ export default function ProductCustomize({ product, initialVariation, printArea 
                                 )}
                             </div>
                             <p className="mx-auto mt-3 max-w-2xl px-2 text-center text-xs text-muted-foreground">
-                                Drag & drop images anywhere on this panel. Orange
-                                border = printable zone.
+                                {activeView === 'back'
+                                    ? 'Back side — drag & drop images or add text inside the orange printable zone.'
+                                    : 'Front side — drag & drop images or add text inside the orange printable zone.'}
                             </p>
                         </div>
                     </div>

@@ -18,6 +18,7 @@ class ServiceBooking extends Model
         'customer_email',
         'customer_phone',
         'notes',
+        'brief_json',
         'status',
         'payment_status',
         'total',
@@ -29,6 +30,7 @@ class ServiceBooking extends Model
     protected function casts(): array
     {
         return [
+            'brief_json' => 'array',
             'service_price' => 'decimal:2',
             'total' => 'decimal:2',
             'paid_at' => 'datetime',

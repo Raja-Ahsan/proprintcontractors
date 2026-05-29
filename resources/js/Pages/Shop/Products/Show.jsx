@@ -1,4 +1,5 @@
 import InputError from '@/Components/InputError';
+import ProductGallerySlider from '@/Components/Shop/ProductGallerySlider';
 import { getCatalogExtraBySlug } from '@/data/catalog';
 import ShopLayout from '@/Layouts/ShopLayout';
 import { Head, Link, useForm, usePage } from '@inertiajs/react';
@@ -92,11 +93,13 @@ export default function Show({ product, related }) {
         if (Array.isArray(galleryUrls)) {
             galleryUrls.forEach(pushUrl);
         }
+        pushUrl(product.back_image_url ?? null);
         pushUrl(catalogExtra?.image ?? null);
 
         return out.filter(Boolean);
     }, [
         catalogExtra?.image,
+        product.back_image_url,
         product.gallery_urls,
         product.image_url,
         isDbVariable,
@@ -183,7 +186,7 @@ export default function Show({ product, related }) {
         const items = [];
         const seenUrls = new Set();
 
-        const pushThumb = (url, variation, isParentThumb) => {
+        const pushThumb = (url, variation, isParentThumb, isBack = false) => {
             if (typeof url !== 'string' || url === '') {
                 return;
             }
@@ -194,16 +197,23 @@ export default function Show({ product, related }) {
 
             seenUrls.add(url);
 
-            items.push({ url, variation, isParentThumb });
+            items.push({ url, variation, isParentThumb, isBack });
         };
 
         if (product.image_url) {
-            pushThumb(product.image_url, null, true);
+            pushThumb(product.image_url, null, true, false);
+        }
+
+        if (product.back_image_url) {
+            pushThumb(product.back_image_url, null, true, true);
         }
 
         for (const v of product.variations) {
             if (v.image_url) {
-                pushThumb(v.image_url, v, false);
+                pushThumb(v.image_url, v, false, false);
+            }
+            if (v.back_image_url) {
+                pushThumb(v.back_image_url, v, false, true);
             }
         }
 
@@ -221,10 +231,82 @@ export default function Show({ product, related }) {
         return items;
     }, [
         isDbVariable,
+        product.back_image_url,
         product.gallery_urls,
         product.image_url,
         product.variations,
     ]);
+
+    const simpleGalleryItems = useMemo(
+        () =>
+            simpleImageSet.map((url, idx) => ({
+                url,
+                key: `simple-${idx}-${url}`,
+                title:
+                    idx === 0
+                        ? 'Main product photo'
+                        : url === product.back_image_url
+                          ? 'Back view'
+                          : 'Gallery photo',
+            })),
+        [product.back_image_url, simpleImageSet],
+    );
+
+    const variableGalleryItems = useMemo(
+        () =>
+            variableThumbItems.map((item, idx) => ({
+                url: item.url,
+                key: `var-${item.url}-${idx}`,
+                title: item.isBack
+                    ? item.variation && item.variation !== '__gallery__'
+                        ? 'Variation back view'
+                        : 'Back view'
+                    : item.isParentThumb
+                      ? 'Default product photo'
+                      : item.variation === '__gallery__'
+                        ? 'Gallery photo'
+                        : 'View this variation',
+                meta: item,
+            })),
+        [variableThumbItems],
+    );
+
+    function handleVariableGallerySelect(item) {
+        const thumb = item.meta;
+
+        if (!thumb) {
+            return;
+        }
+
+        if (thumb.variation === '__gallery__' || thumb.isBack) {
+            setVariableGalleryPinUrl(thumb.url);
+
+            if (
+                thumb.isBack &&
+                thumb.variation &&
+                thumb.variation !== '__gallery__' &&
+                thumb.variation.attributes
+            ) {
+                setSelectedAttrs({ ...thumb.variation.attributes });
+            }
+
+            return;
+        }
+
+        setVariableGalleryPinUrl(null);
+
+        if (thumb.variation?.attributes) {
+            setSelectedAttrs({ ...thumb.variation.attributes });
+
+            return;
+        }
+
+        const v = variationForMainProductImage(product);
+
+        if (v?.attributes) {
+            setSelectedAttrs({ ...v.attributes });
+        }
+    }
 
     const [color, setColor] = useState(catalogExtra?.colors?.[0] ?? '');
     const [size, setSize] = useState(catalogExtra?.sizes?.[0] ?? '');
@@ -374,100 +456,21 @@ export default function Show({ product, related }) {
                                 </div>
                             )}
                         </div>
-                        {!isDbVariable && simpleImageSet.length > 1 ? (
-                            <div className="flex flex-wrap justify-center gap-2">
-                                {simpleImageSet.map((src, idx) => (
-                                    <button
-                                        key={`${src}-${idx}`}
-                                        type="button"
-                                        onClick={() => setGalleryIndex(idx)}
-                                        className={`relative h-16 w-16 overflow-hidden rounded-xl border-2 bg-card transition-all ${
-                                            galleryIndex === idx
-                                                ? 'border-primary ring-2 ring-primary/30'
-                                                : 'border-border hover:border-primary/60'
-                                        }`}
-                                    >
-                                        <img
-                                            src={src}
-                                            alt=""
-                                            width={64}
-                                            height={64}
-                                            className="h-full w-full object-cover"
-                                        />
-                                    </button>
-                                ))}
-                            </div>
+                        {!isDbVariable && simpleGalleryItems.length > 0 ? (
+                            <ProductGallerySlider
+                                items={simpleGalleryItems}
+                                activeUrl={displayImage}
+                                onSelect={(_item, idx) =>
+                                    setGalleryIndex(idx)
+                                }
+                            />
                         ) : null}
-                        {isDbVariable && variableThumbItems.length > 0 ? (
-                            <div className="flex flex-wrap justify-center gap-2">
-                                {variableThumbItems.map((item) => {
-                                    const isActive =
-                                        displayImage &&
-                                        displayImage === item.url;
-
-                                    return (
-                                        <button
-                                            key={item.url}
-                                            type="button"
-                                            title={
-                                                item.isParentThumb
-                                                    ? 'Default product photo'
-                                                    : 'View this variation'
-                                            }
-                                            onClick={() => {
-                                                if (
-                                                    item.variation ===
-                                                    '__gallery__'
-                                                ) {
-                                                    setVariableGalleryPinUrl(
-                                                        item.url,
-                                                    );
-
-                                                    return;
-                                                }
-
-                                                setVariableGalleryPinUrl(null);
-
-                                                if (
-                                                    item.variation
-                                                        ?.attributes
-                                                ) {
-                                                    setSelectedAttrs({
-                                                        ...item.variation
-                                                            .attributes,
-                                                    });
-
-                                                    return;
-                                                }
-
-                                                const v =
-                                                    variationForMainProductImage(
-                                                        product,
-                                                    );
-
-                                                if (v?.attributes) {
-                                                    setSelectedAttrs({
-                                                        ...v.attributes,
-                                                    });
-                                                }
-                                            }}
-                                            className={`relative h-16 w-16 overflow-hidden rounded-xl border-2 bg-card transition-all ${
-                                                isActive
-                                                    ? 'border-primary ring-2 ring-primary/30'
-                                                    : 'border-border hover:border-primary/60'
-                                            }`}
-                                        >
-                                            <img
-                                                src={item.url}
-                                                alt=""
-                                                width={64}
-                                                height={64}
-                                                className="h-full w-full object-cover"
-                                            />
-                                        </button>
-                                    );
-                                })}
-                            </div>
+                        {isDbVariable && variableGalleryItems.length > 0 ? (
+                            <ProductGallerySlider
+                                items={variableGalleryItems}
+                                activeUrl={displayImage}
+                                onSelect={handleVariableGallerySelect}
+                            />
                         ) : null}
                         <p className="text-center text-xs text-muted-foreground">
                             Live preview · final print quality will exceed this preview

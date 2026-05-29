@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Shop;
 use App\Http\Controllers\Controller;
 use App\Models\ServiceBooking;
 use App\Models\ServicePackage;
+use App\Services\ServiceBriefService;
 use App\Services\StripeCheckoutService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -15,7 +16,8 @@ use Inertia\Response;
 class ServiceBookingController extends Controller
 {
     public function __construct(
-        protected StripeCheckoutService $stripe
+        protected StripeCheckoutService $stripe,
+        protected ServiceBriefService $briefs,
     ) {}
 
     public function create(ServicePackage $servicePackage): Response|RedirectResponse
@@ -24,7 +26,9 @@ class ServiceBookingController extends Controller
             return redirect()->route('marketing.services')->withErrors(['service' => 'This service is not available.']);
         }
 
-        $servicePackage->load('category:id,name,is_active');
+        $servicePackage->load('category:id,name,slug,is_active');
+
+        $briefType = $this->briefs->briefTypeForCategory($servicePackage->category);
 
         return Inertia::render('Marketing/ServiceBook', [
             'package' => [
@@ -35,7 +39,9 @@ class ServiceBookingController extends Controller
                 'popular' => $servicePackage->popular,
                 'features' => $servicePackage->features ?? [],
                 'category_name' => $servicePackage->category->name,
+                'category_slug' => $servicePackage->category->slug,
             ],
+            'briefType' => $briefType,
             'stripeConfigured' => $this->stripe->isConfigured(),
             'stripePublishableConfigured' => $this->stripe->publishableConfigured(),
             'defaults' => [
@@ -57,14 +63,40 @@ class ServiceBookingController extends Controller
             return redirect()->route('marketing.services')->withErrors(['service' => 'This service is not available.']);
         }
 
-        $servicePackage->load('category:id,name,is_active');
+        $servicePackage->load('category:id,name,slug,is_active');
 
-        $validated = $request->validate([
+        $briefType = $this->briefs->briefTypeForCategory($servicePackage->category);
+
+        $rules = [
             'customer_name' => ['required', 'string', 'max:255'],
             'customer_email' => ['required', 'email', 'max:255'],
             'customer_phone' => ['nullable', 'string', 'max:50'],
             'notes' => ['nullable', 'string', 'max:2000'],
-        ]);
+        ];
+
+        if ($briefType === 'logo') {
+            $rules = array_merge($rules, $this->briefs->logoBriefValidationRules());
+        }
+
+        if ($briefType === 'web') {
+            $rules = array_merge($rules, $this->briefs->webBriefValidationRules());
+        }
+
+        if ($briefType === 'digital_marketing') {
+            $rules = array_merge($rules, $this->briefs->digitalMarketingBriefValidationRules());
+        }
+
+        $validated = $request->validate($rules);
+
+        $briefJson = null;
+
+        if ($briefType === 'logo') {
+            $briefJson = $this->briefs->normalizeLogoBrief($validated['brief'] ?? []);
+        }
+
+        if ($briefType === 'digital_marketing') {
+            $briefJson = $this->briefs->normalizeDigitalMarketingBrief($validated['brief'] ?? []);
+        }
 
         $total = (float) $servicePackage->price;
 
@@ -79,11 +111,18 @@ class ServiceBookingController extends Controller
             'customer_email' => $validated['customer_email'],
             'customer_phone' => $validated['customer_phone'] ?? null,
             'notes' => $validated['notes'] ?? null,
+            'brief_json' => $briefJson,
             'status' => 'awaiting_payment',
             'payment_status' => 'unpaid',
             'total' => number_format($total, 2, '.', ''),
             'placed_at' => now(),
         ]);
+
+        if ($briefType === 'web') {
+            $briefJson = $this->briefs->normalizeWebBrief($validated['brief'] ?? []);
+            $briefJson['content_files'] = $this->briefs->storeWebBriefContentFiles($request, $booking);
+            $booking->update(['brief_json' => $briefJson]);
+        }
 
         $checkoutUrl = $this->stripe->createServiceBookingCheckoutSession($booking);
 

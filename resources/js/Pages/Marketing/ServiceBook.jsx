@@ -1,10 +1,17 @@
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
+import DigitalMarketingBriefForm from '@/Components/Marketing/DigitalMarketingBriefForm';
+import LogoBriefForm from '@/Components/Marketing/LogoBriefForm';
+import WebBriefForm from '@/Components/Marketing/WebBriefForm';
 import PrimaryButton from '@/Components/PrimaryButton';
 import TextInput from '@/Components/TextInput';
+import { emptyDigitalMarketingBrief } from '@/data/digitalMarketingBriefOptions';
+import { emptyLogoBrief } from '@/data/logoBriefOptions';
+import { emptyWebBrief } from '@/data/webBriefOptions';
 import ShopLayout from '@/Layouts/ShopLayout';
 import { Head, Link, useForm } from '@inertiajs/react';
 import { ArrowLeft, Check } from 'lucide-react';
+import { useMemo, useState } from 'react';
 
 function money(amount) {
     return new Intl.NumberFormat(undefined, {
@@ -13,22 +20,105 @@ function money(amount) {
     }).format(Number(amount));
 }
 
+function emptyBriefForType(briefType) {
+    if (briefType === 'logo') {
+        return emptyLogoBrief();
+    }
+
+    if (briefType === 'web') {
+        return emptyWebBrief();
+    }
+
+    if (briefType === 'digital_marketing') {
+        return emptyDigitalMarketingBrief();
+    }
+
+    return null;
+}
+
 export default function ServiceBook({
     package: pkg,
+    briefType,
     stripeConfigured,
     stripePublishableConfigured,
     defaults,
 }) {
+    const showBrief =
+        briefType === 'logo' ||
+        briefType === 'web' ||
+        briefType === 'digital_marketing';
+    const [contentFiles, setContentFiles] = useState([]);
+
     const form = useForm({
         customer_name: defaults.customer_name ?? '',
         customer_email: defaults.customer_email ?? '',
         customer_phone: '',
         notes: '',
+        brief: showBrief ? emptyBriefForType(briefType) : null,
     });
+
+    const briefErrors = useMemo(() => {
+        const out = {};
+
+        for (const [key, value] of Object.entries(form.errors)) {
+            if (!key.startsWith('brief.')) {
+                continue;
+            }
+
+            out[key.slice('brief.'.length)] = value;
+        }
+
+        return out;
+    }, [form.errors]);
+
+    const briefLabel =
+        briefType === 'logo'
+            ? 'logo brief'
+            : briefType === 'web'
+              ? 'website brief'
+              : briefType === 'digital_marketing'
+                ? 'digital marketing brief'
+                : '';
+
+    function setBriefField(key, value) {
+        form.setData('brief', {
+            ...form.data.brief,
+            [key]: value,
+        });
+    }
+
+    function toggleBriefArray(key, option) {
+        const current = form.data.brief?.[key] ?? [];
+        const next = current.includes(option)
+            ? current.filter((item) => item !== option)
+            : [...current, option];
+
+        form.setData('brief', {
+            ...form.data.brief,
+            [key]: next,
+        });
+    }
 
     function submit(e) {
         e.preventDefault();
-        form.post(route('services.book.store', pkg.slug));
+
+        if (briefType === 'web' && contentFiles.length > 0) {
+            form.transform((data) => {
+                const next = { ...data };
+
+                contentFiles.forEach((file, idx) => {
+                    if (file instanceof File) {
+                        next[`brief_content_files[${idx}]`] = file;
+                    }
+                });
+
+                return next;
+            });
+        }
+
+        form.post(route('services.book.store', pkg.slug), {
+            forceFormData: briefType === 'web' && contentFiles.length > 0,
+        });
     }
 
     return (
@@ -49,7 +139,8 @@ export default function ServiceBook({
                 </h1>
                 <p className="mt-2 text-muted-foreground">
                     {pkg.category_name} · {money(pkg.price)} — complete your details
-                    below, then pay securely with Stripe.
+                    {showBrief ? ` and ${briefLabel}` : ''} below, then pay securely
+                    with Stripe.
                 </p>
 
                 {!stripeConfigured && (
@@ -70,6 +161,37 @@ export default function ServiceBook({
 
                 <div className="mt-10 grid gap-10 lg:grid-cols-2">
                     <form onSubmit={submit} className="space-y-6">
+                        {briefType === 'logo' ? (
+                            <LogoBriefForm
+                                brief={form.data.brief}
+                                errors={briefErrors}
+                                onField={setBriefField}
+                                onToggleArray={toggleBriefArray}
+                            />
+                        ) : null}
+
+                        {briefType === 'web' ? (
+                            <WebBriefForm
+                                brief={form.data.brief}
+                                errors={briefErrors}
+                                onField={setBriefField}
+                                contentFiles={contentFiles}
+                                onContentFilesChange={setContentFiles}
+                                fileError={
+                                    form.errors['brief_content_files'] ??
+                                    form.errors['brief_content_files.0']
+                                }
+                            />
+                        ) : null}
+
+                        {briefType === 'digital_marketing' ? (
+                            <DigitalMarketingBriefForm
+                                brief={form.data.brief}
+                                errors={briefErrors}
+                                onField={setBriefField}
+                            />
+                        ) : null}
+
                         <section className="rounded-lg border border-border bg-card p-6 shadow-sm">
                             <h2 className="text-lg font-semibold text-foreground">
                                 Your details
@@ -114,19 +236,21 @@ export default function ServiceBook({
                                     />
                                     <InputError message={form.errors.customer_phone} className="mt-2" />
                                 </div>
-                                <div>
-                                    <InputLabel htmlFor="notes" value="Project notes (optional)" />
-                                    <textarea
-                                        id="notes"
-                                        value={form.data.notes}
-                                        onChange={(e) =>
-                                            form.setData('notes', e.target.value)
-                                        }
-                                        rows={4}
-                                        className="mt-1 block w-full rounded-md border border-border bg-background text-foreground shadow-sm focus:border-primary focus:ring-primary"
-                                    />
-                                    <InputError message={form.errors.notes} className="mt-2" />
-                                </div>
+                                {!showBrief ? (
+                                    <div>
+                                        <InputLabel htmlFor="notes" value="Project notes (optional)" />
+                                        <textarea
+                                            id="notes"
+                                            value={form.data.notes}
+                                            onChange={(e) =>
+                                                form.setData('notes', e.target.value)
+                                            }
+                                            rows={4}
+                                            className="mt-1 block w-full rounded-md border border-border bg-background text-foreground shadow-sm focus:border-primary focus:ring-primary"
+                                        />
+                                        <InputError message={form.errors.notes} className="mt-2" />
+                                    </div>
+                                ) : null}
                             </div>
                         </section>
 

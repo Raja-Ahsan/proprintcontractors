@@ -68,8 +68,8 @@ export function ShopHeader() {
                             <img
                                 src={site.headerLogoUrl}
                                 alt=""
-                                className={`relative h-9 w-auto max-w-[160px] object-contain transition-all duration-500 ${
-                                    scrolled ? 'max-h-8' : 'max-h-10'
+                                className={`relative h-20 w-auto max-w-[200px] object-contain transition-all duration-500 ${
+                                    scrolled ? 'max-h-20' : 'max-h-20'
                                 }`}
                                 onError={() => setLogoOk(false)}
                             />
@@ -83,9 +83,9 @@ export function ShopHeader() {
                             </span>
                         )}
                     </div>
-                    <span className="hidden max-w-[14rem] truncate font-semibold text-foreground/90 sm:inline">
+                    {/* <span className="hidden max-w-[14rem] truncate font-semibold text-foreground/90 sm:inline">
                         {brand}
-                    </span>
+                    </span> */}
                 </Link>
 
                 <nav className="hidden items-center gap-8 lg:flex">

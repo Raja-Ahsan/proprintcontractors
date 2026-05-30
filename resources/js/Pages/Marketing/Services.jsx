@@ -73,7 +73,7 @@ export default function Services({ categories = [] }) {
                                                 ${Number(tier.price).toLocaleString()}
                                             </span>
                                         </div>
-                                        <ul className="mb-8 space-y-3">
+                                        <ul className="service-package-features mb-8 space-y-3">
                                             {(tier.features ?? []).map((f) => (
                                                 <li
                                                     key={f}

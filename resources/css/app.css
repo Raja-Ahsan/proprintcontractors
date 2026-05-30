@@ -263,6 +263,11 @@
         opacity: 1;
     }
 
+    .service-package-features {
+        height: 200px;
+        overflow: auto;
+    }
+
     /* Animated gradient sweep across text */
     @keyframes gradient-shift {
 

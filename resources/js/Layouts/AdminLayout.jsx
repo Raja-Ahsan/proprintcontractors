@@ -12,6 +12,7 @@ import {
     LayoutDashboard,
     Mail,
     Menu,
+    MessageSquare,
     Package,
     Search,
     Settings,
@@ -67,6 +68,12 @@ const nav = [
         href: () => route('admin.service-bookings.index'),
         routeName: 'admin.service-bookings.*',
         icon: CalendarCheck,
+    },
+    {
+        name: 'Contact messages',
+        href: () => route('admin.contact-messages.index'),
+        routeName: 'admin.contact-messages.*',
+        icon: MessageSquare,
     },
     {
         name: 'Coupons',

@@ -1,43 +1,45 @@
 import AdminLayout from '@/Layouts/AdminLayout';
 import PrimaryButton from '@/Components/PrimaryButton';
-import { Head, useForm } from '@inertiajs/react';
+import { Head, Link, useForm } from '@inertiajs/react';
 import { useState } from 'react';
 
-const tabs = [
+const customerTabs = [
     { id: 'welcome', label: 'Welcome (signup)' },
     { id: 'password_reset', label: 'Forgot password' },
     { id: 'order_confirmation', label: 'Order confirmation' },
+    { id: 'order_confirmation_quote', label: 'Order confirmation (quote)' },
     { id: 'order_processing', label: 'Order processing' },
+    { id: 'order_processing_quote', label: 'Order processing (quote)' },
     { id: 'order_shipped', label: 'Order shipped' },
+    { id: 'service_booking_confirmation', label: 'Service booking confirmation' },
 ];
 
-export default function Emails({ templates, placeholderHint }) {
+const adminTabs = [
+    { id: 'contact_notification', label: 'Contact form (admin)' },
+    { id: 'order_admin', label: 'New order (admin)' },
+    { id: 'service_booking_admin', label: 'Service booking (admin)' },
+];
+
+const allTabs = [...customerTabs, ...adminTabs];
+
+function emptyTemplate() {
+    return { subject: '', body_html: '' };
+}
+
+export default function Emails({ templates, placeholderHint, adminEmail }) {
     const [tab, setTab] = useState('welcome');
 
-    const form = useForm({
-        templates: {
-            welcome: {
-                subject: templates.welcome?.subject ?? '',
-                body_html: templates.welcome?.body_html ?? '',
+    const initialTemplates = Object.fromEntries(
+        allTabs.map(({ id }) => [
+            id,
+            {
+                subject: templates[id]?.subject ?? '',
+                body_html: templates[id]?.body_html ?? '',
             },
-            password_reset: {
-                subject: templates.password_reset?.subject ?? '',
-                body_html: templates.password_reset?.body_html ?? '',
-            },
-            order_confirmation: {
-                subject: templates.order_confirmation?.subject ?? '',
-                body_html: templates.order_confirmation?.body_html ?? '',
-            },
-            order_processing: {
-                subject: templates.order_processing?.subject ?? '',
-                body_html: templates.order_processing?.body_html ?? '',
-            },
-            order_shipped: {
-                subject: templates.order_shipped?.subject ?? '',
-                body_html: templates.order_shipped?.body_html ?? '',
-            },
-        },
-    });
+        ]),
+    );
+
+    const form = useForm({ templates: initialTemplates });
 
     function setField(field, value) {
         form.setData('templates', {
@@ -56,7 +58,8 @@ export default function Emails({ templates, placeholderHint }) {
         });
     }
 
-    const current = form.data.templates[tab];
+    const current = form.data.templates[tab] ?? emptyTemplate();
+    const isAdminTab = adminTabs.some((t) => t.id === tab);
 
     return (
         <AdminLayout
@@ -69,11 +72,17 @@ export default function Emails({ templates, placeholderHint }) {
                         Email templates
                     </h1>
                     <p className="mt-2 text-sm text-muted-foreground">
-                        HTML snippets support placeholders below. Order templates
-                        receive line-item HTML via{' '}
-                        <code className="rounded bg-secondary px-1 text-xs">
-                            {'{{order_items_html}}'}
-                        </code>
+                        Customer emails go to shoppers. Admin notifications go to{' '}
+                        {adminEmail ? (
+                            <strong className="text-foreground">{adminEmail}</strong>
+                        ) : (
+                            <Link
+                                href={route('admin.settings.general')}
+                                className="font-semibold text-primary hover:underline"
+                            >
+                                set an admin email in General settings
+                            </Link>
+                        )}
                         .
                     </p>
                 </div>
@@ -82,22 +91,62 @@ export default function Emails({ templates, placeholderHint }) {
             <Head title="Email templates" />
 
             <div className="w-full space-y-6">
-                <div className="flex flex-wrap gap-2">
-                    {tabs.map((t) => (
-                        <button
-                            key={t.id}
-                            type="button"
-                            onClick={() => setTab(t.id)}
-                            className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                                tab === t.id
-                                    ? 'bg-primary text-primary-foreground shadow-glow'
-                                    : 'border border-border bg-secondary text-muted-foreground hover:text-foreground'
-                            }`}
-                        >
-                            {t.label}
-                        </button>
-                    ))}
+                <div>
+                    <p className="mb-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                        Customer emails
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                        {customerTabs.map((t) => (
+                            <button
+                                key={t.id}
+                                type="button"
+                                onClick={() => setTab(t.id)}
+                                className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                                    tab === t.id
+                                        ? 'bg-primary text-primary-foreground shadow-glow'
+                                        : 'border border-border bg-secondary text-muted-foreground hover:text-foreground'
+                                }`}
+                            >
+                                {t.label}
+                            </button>
+                        ))}
+                    </div>
                 </div>
+
+                <div>
+                    <p className="mb-2 text-xs font-bold uppercase tracking-widest text-muted-foreground">
+                        Admin notifications
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                        {adminTabs.map((t) => (
+                            <button
+                                key={t.id}
+                                type="button"
+                                onClick={() => setTab(t.id)}
+                                className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                                    tab === t.id
+                                        ? 'bg-primary text-primary-foreground shadow-glow'
+                                        : 'border border-border bg-secondary text-muted-foreground hover:text-foreground'
+                                }`}
+                            >
+                                {t.label}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                {isAdminTab && !adminEmail && (
+                    <p className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+                        Add an email address in{' '}
+                        <Link
+                            href={route('admin.settings.general')}
+                            className="font-semibold underline"
+                        >
+                            General settings
+                        </Link>{' '}
+                        so admin notifications can be delivered.
+                    </p>
+                )}
 
                 <form
                     onSubmit={submit}

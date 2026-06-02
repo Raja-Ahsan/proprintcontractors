@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\CategoryController as AdminCategoryController;
+use App\Http\Controllers\Admin\ContactMessageController as AdminContactMessageController;
 use App\Http\Controllers\Admin\CouponController as AdminCouponController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\EmailTemplatesController as AdminEmailTemplatesController;
@@ -12,6 +13,7 @@ use App\Http\Controllers\Admin\SeoSettingsController as AdminSeoSettingsControll
 use App\Http\Controllers\Admin\ServiceBookingController as AdminServiceBookingController;
 use App\Http\Controllers\Admin\ServiceCategoryController as AdminServiceCategoryController;
 use App\Http\Controllers\Admin\ServicePackageController as AdminServicePackageController;
+use App\Http\Controllers\ContactController;
 use App\Http\Controllers\Dashboard\OrderController as CustomerOrderController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Shop\CartController;
@@ -43,6 +45,9 @@ Route::get('/about', fn () => Inertia::render('Marketing/About'))->name(
 Route::get('/contact', fn () => Inertia::render('Marketing/Contact'))->name(
     'marketing.contact',
 );
+Route::post('/contact', [ContactController::class, 'store'])
+    ->middleware('throttle:10,1')
+    ->name('marketing.contact.store');
 
 Route::get('/products', [ProductController::class, 'index'])->name('products.index');
 Route::get('/products/{product}/customize', [ProductCustomizeController::class, 'show'])
@@ -104,6 +109,9 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
     Route::get('service-bookings', [AdminServiceBookingController::class, 'index'])->name('service-bookings.index');
     Route::get('service-bookings/{serviceBooking}', [AdminServiceBookingController::class, 'show'])->name('service-bookings.show');
     Route::patch('service-bookings/{serviceBooking}/status', [AdminServiceBookingController::class, 'updateStatus'])->name('service-bookings.status');
+
+    Route::get('contact-messages', [AdminContactMessageController::class, 'index'])->name('contact-messages.index');
+    Route::get('contact-messages/{contactMessage}', [AdminContactMessageController::class, 'show'])->name('contact-messages.show');
 
     Route::get('settings/general', [AdminGeneralSettingsController::class, 'edit'])->name('settings.general');
     Route::post('settings/general', [AdminGeneralSettingsController::class, 'update'])->name('settings.general.update');

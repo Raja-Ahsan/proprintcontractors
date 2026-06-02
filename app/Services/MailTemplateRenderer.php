@@ -2,10 +2,16 @@
 
 namespace App\Services;
 
+use App\Models\ContactMessage;
 use App\Models\Order;
+use App\Models\ServiceBooking;
 
 class MailTemplateRenderer
 {
+    public function __construct(
+        protected ServiceBriefService $briefs
+    ) {}
+
     /**
      * @param  array<string, string|null>  $vars
      */
@@ -90,6 +96,39 @@ class MailTemplateRenderer
             'shipping_address' => $ship,
             'order_items_html' => $itemsTable,
             'order_pricing_html' => $pricingBlock,
+        ]);
+    }
+
+    /**
+     * @return array<string, string|null>
+     */
+    public function contactMessageVars(ContactMessage $message): array
+    {
+        return array_merge($this->globalVars(), [
+            'contact_name' => $message->name,
+            'contact_email' => $message->email,
+            'contact_subject' => $message->subject,
+            'contact_message' => $message->message,
+        ]);
+    }
+
+    /**
+     * @return array<string, string|null>
+     */
+    public function serviceBookingVars(ServiceBooking $booking): array
+    {
+        $briefHtml = $this->briefs->briefHtmlForEmail($booking->brief_json);
+
+        return array_merge($this->globalVars(), [
+            'booking_number' => $booking->booking_number,
+            'service_name' => $booking->service_name,
+            'category_name' => $booking->category_name,
+            'customer_name' => $booking->customer_name,
+            'customer_email' => $booking->customer_email,
+            'customer_phone' => $booking->customer_phone,
+            'booking_total' => (string) $booking->total,
+            'booking_notes' => $booking->notes,
+            'booking_brief_html' => $briefHtml !== '' ? $briefHtml : '<p><em>No brief submitted.</em></p>',
         ]);
     }
 }

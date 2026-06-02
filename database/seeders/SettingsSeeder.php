@@ -73,10 +73,13 @@ HTML,
             'email.order_processing.body_html' => <<<'HTML'
 <p>Hi,</p>
 <p>Your order <strong>{{order_number}}</strong> is now being processed.</p>
-<p>Total paid: ${{order_total}}</p>
+{{order_pricing_html}}
+<h3>Items</h3>
+{{order_items_html}}
 <p>— {{site_name}}</p>
 HTML,
 
+            'email.order_processing_quote.subject' => 'We\'re preparing order {{order_number}}',
             'email.order_processing_quote.body_html' => <<<'HTML'
 <p>Hi,</p>
 <p>Your order <strong>{{order_number}}</strong> is now being processed.</p>
@@ -88,6 +91,64 @@ HTML,
             'email.order_shipped.body_html' => <<<'HTML'
 <p>Hi,</p>
 <p>Good news — order <strong>{{order_number}}</strong> has shipped.</p>
+<h3>Items</h3>
+{{order_items_html}}
+<p>— {{site_name}}</p>
+HTML,
+
+            'email.contact_notification.subject' => 'New contact message: {{contact_subject}} — {{site_name}}',
+            'email.contact_notification.body_html' => <<<'HTML'
+<p>You have received a new message from your contact form.</p>
+<table cellpadding="6" cellspacing="0" style="border-collapse:collapse;">
+<tr><td><strong>Name</strong></td><td>{{contact_name}}</td></tr>
+<tr><td><strong>Email</strong></td><td>{{contact_email}}</td></tr>
+<tr><td><strong>Subject</strong></td><td>{{contact_subject}}</td></tr>
+</table>
+<h3>Message</h3>
+<p style="white-space:pre-wrap;">{{contact_message}}</p>
+<p>— {{site_name}}</p>
+HTML,
+
+            'email.order_admin.subject' => 'New order {{order_number}} — {{site_name}}',
+            'email.order_admin.body_html' => <<<'HTML'
+<p>A new order has been placed.</p>
+<p><strong>Order:</strong> {{order_number}}<br>
+<strong>Status:</strong> {{order_status}}</p>
+{{order_pricing_html}}
+<h3>Items</h3>
+{{order_items_html}}
+<h3>Ship to</h3>
+<p>{{shipping_address}}</p>
+<p>— {{site_name}}</p>
+HTML,
+
+            'email.service_booking_admin.subject' => 'New service booking {{booking_number}} — {{site_name}}',
+            'email.service_booking_admin.body_html' => <<<'HTML'
+<p>A new service booking has been received.</p>
+<table cellpadding="6" cellspacing="0" style="border-collapse:collapse;">
+<tr><td><strong>Booking</strong></td><td>{{booking_number}}</td></tr>
+<tr><td><strong>Service</strong></td><td>{{category_name}} — {{service_name}}</td></tr>
+<tr><td><strong>Customer</strong></td><td>{{customer_name}}</td></tr>
+<tr><td><strong>Email</strong></td><td>{{customer_email}}</td></tr>
+<tr><td><strong>Phone</strong></td><td>{{customer_phone}}</td></tr>
+<tr><td><strong>Total</strong></td><td>${{booking_total}}</td></tr>
+</table>
+{{booking_notes_block}}
+<h3>Project brief</h3>
+{{booking_brief_html}}
+<p>— {{site_name}}</p>
+HTML,
+
+            'email.service_booking_confirmation.subject' => 'Booking {{booking_number}} confirmed — {{site_name}}',
+            'email.service_booking_confirmation.body_html' => <<<'HTML'
+<p>Hi {{customer_name}},</p>
+<p>Thank you for booking <strong>{{service_name}}</strong> ({{category_name}}).</p>
+<p>Your booking reference is <strong>{{booking_number}}</strong>.</p>
+<p>Total paid: ${{booking_total}}</p>
+{{booking_notes_block}}
+<h3>Your brief</h3>
+{{booking_brief_html}}
+<p>We will be in touch soon. Questions? Email us at {{support_email}}.</p>
 <p>— {{site_name}}</p>
 HTML,
         ];

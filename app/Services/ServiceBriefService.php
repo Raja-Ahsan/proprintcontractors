@@ -300,6 +300,144 @@ class ServiceBriefService
     /**
      * @param  array<string, mixed>|null  $brief
      */
+    public function briefHtmlForEmail(?array $brief): string
+    {
+        if ($brief === null) {
+            return '';
+        }
+
+        $labels = match ($brief['type'] ?? '') {
+            'logo' => self::LOGO_BRIEF_EMAIL_LABELS,
+            'web' => self::WEB_BRIEF_EMAIL_LABELS,
+            'digital_marketing' => self::DIGITAL_MARKETING_BRIEF_EMAIL_LABELS,
+            default => [],
+        };
+
+        if ($labels === []) {
+            return '';
+        }
+
+        $rows = '';
+        foreach ($labels as $key => $label) {
+            $value = $brief[$key] ?? null;
+
+            if ($key === 'content_files' && is_array($value)) {
+                $links = [];
+                foreach ($value as $file) {
+                    if (! is_array($file)) {
+                        continue;
+                    }
+                    $name = e((string) ($file['original_name'] ?? 'Download file'));
+                    $url = e((string) ($file['url'] ?? ''));
+                    if ($url !== '') {
+                        $links[] = '<a href="'.$url.'">'.$name.'</a>';
+                    }
+                }
+                if ($links === []) {
+                    continue;
+                }
+                $value = implode('<br>', $links);
+            } elseif (is_array($value)) {
+                $value = implode(', ', array_map('strval', $value));
+            } else {
+                $value = trim((string) ($value ?? ''));
+            }
+
+            if ($value === '') {
+                continue;
+            }
+
+            $rows .= '<tr>'
+                .'<td style="padding:8px;border:1px solid #eee;vertical-align:top;font-weight:600;">'.e($label).'</td>'
+                .'<td style="padding:8px;border:1px solid #eee;white-space:pre-wrap;">'.$value.'</td>'
+                .'</tr>';
+        }
+
+        if ($rows === '') {
+            return '';
+        }
+
+        return '<table style="width:100%;border-collapse:collapse;font-size:14px;margin-top:12px;">'
+            .'<tbody>'.$rows.'</tbody></table>';
+    }
+
+    /** @var array<string, string> */
+    private const LOGO_BRIEF_EMAIL_LABELS = [
+        'logo_name' => 'Exact name on logo',
+        'slogan' => 'Slogan or tagline',
+        'business_description' => 'Business description',
+        'business_industry' => 'Business industry',
+        'competitors' => 'Competitors or similar businesses',
+        'business_website' => 'Business website',
+        'requirements' => 'Logo requirements',
+        'logo_elements' => 'Elements in the logos',
+        'logo_styles' => 'Logo style',
+        'look_and_feel' => 'Look and feel',
+        'usage' => 'Planned logo usage',
+        'colors' => 'Color preference',
+        'color_other' => 'Other colors',
+        'font_styles' => 'Font style',
+        'additional_comments' => 'Additional comments',
+    ];
+
+    /** @var array<string, string> */
+    private const WEB_BRIEF_EMAIL_LABELS = [
+        'business_name' => 'Business name',
+        'brand_name' => 'Brand / business name',
+        'industry' => 'Industry',
+        'business_description' => 'Business description',
+        'target_audience' => 'Target audience',
+        'competitors_inspiration' => 'Competitors or inspiration sites',
+        'color_preferences' => 'Color preferences',
+        'site_feeling' => 'Overall site feeling',
+        'content_needs' => 'Website content needs',
+        'content_notes' => 'Additional content notes',
+        'content_files' => 'Content files',
+        'existing_website_or_domain' => 'Existing website or domain',
+        'desired_pages' => 'Desired pages',
+        'social_media_links' => 'Social media links',
+        'designer_notes' => 'Notes for web designer',
+        'hosting_needs' => 'Hosting needs',
+        'hosting_details' => 'Hosting details',
+    ];
+
+    /** @var array<string, string> */
+    private const DIGITAL_MARKETING_BRIEF_EMAIL_LABELS = [
+        'social_media_purpose' => 'Purpose on social media',
+        'brand_objective' => "Brand objective",
+        'social_media_goals' => 'Social media goals',
+        'biggest_barrier' => 'Biggest barrier to success',
+        'growth_plan_fit' => 'How social media fits growth plan',
+        'target_audience' => 'Target audience',
+        'audience_engagement' => 'How brand engages audience',
+        'brand_voice' => 'Brand voice',
+        'update_tone' => 'Update tone',
+        'main_message' => 'Main message',
+        'brand_differentiator' => 'Brand differentiator',
+        'why_choose_you' => 'Why choose you',
+        'brand_vision' => 'Brand vision',
+        'content_resources' => 'Content resources',
+        'publish_frequency' => 'Publish frequency',
+        'offline_campaigns' => 'Offline campaigns',
+        'audience_content_response' => 'Audience content response',
+        'content_types_to_create' => 'Content types to create',
+        'content_message' => 'Content message',
+        'user_generated_content' => 'User generated content',
+        'holidays_to_observe' => 'Holidays to observe',
+        'existing_profiles' => 'Existing profiles',
+        'expand_networks' => 'Expand networks',
+        'narrow_networks' => 'Narrow networks',
+        'social_customer_service' => 'Social customer service',
+        'measure_roi' => 'Measure ROI',
+        'working_and_not_working' => 'Working and not working',
+        'sales_funnel_fit' => 'Sales funnel fit',
+        'past_attempts' => 'Past attempts',
+        'tracking_pixels' => 'Tracking pixels',
+    ];
+
+    /**
+     * @param  array<string, mixed>|null  $brief
+     */
     public function summarizeBrief(?array $brief): ?string
     {
         if ($brief === null) {

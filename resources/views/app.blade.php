@@ -7,6 +7,15 @@
 
         <title inertia>{{ config('app.name', 'Laravel') }}</title>
 
+        @php
+            $faviconUrl = \App\Services\SiteSettings::tableReady()
+                ? (\App\Services\SiteSettings::appearanceForFrontend()['faviconUrl'] ?? null)
+                : null;
+        @endphp
+        @if ($faviconUrl)
+            <link rel="icon" href="{{ $faviconUrl }}" />
+        @endif
+
         <!-- Fonts -->
         <link rel="preconnect" href="https://fonts.bunny.net">
         <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700,800,900|figtree:400,500,600&display=swap" rel="stylesheet" />

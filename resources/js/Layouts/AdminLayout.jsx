@@ -1,6 +1,6 @@
 import 'sweetalert2/dist/sweetalert2.min.css';
 
-import { Link, usePage } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
 import Swal from 'sweetalert2';
 import {
     Briefcase,
@@ -124,6 +124,7 @@ export default function AdminLayout({ header, children }) {
     const { props, url } = usePage();
     const user = props.auth.user;
     const flash = props.flash;
+    const site = props.site;
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [userMenuOpen, setUserMenuOpen] = useState(false);
 
@@ -163,6 +164,11 @@ export default function AdminLayout({ header, children }) {
 
     return (
         <div className="min-h-screen bg-background text-foreground" data-admin-shell>
+            <Head>
+                {site?.faviconUrl && (
+                    <link rel="icon" href={site.faviconUrl} />
+                )}
+            </Head>
             {sidebarOpen && (
                 <button
                     type="button"

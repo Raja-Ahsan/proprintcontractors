@@ -4,13 +4,12 @@
  * Replace with `/images/marketing/*.jpg` later if you add files under public/.
  */
 export const heroImageUrl =
-    'https://images.unsplash.com/photo-1589939705384-5185137a7f0f?auto=format&fit=crop&w=1600&q=85';
+    '/images/marketing/home-brands-banner.jpg';
 
 /** @typedef {{ id: string, name: string, category: string, price: number, image: string }} MarketingProduct */
 
 /** @type {MarketingProduct[]} */
-export const marketingProducts = [
-    {
+export const marketingProducts = [{
         id: 'tshirt',
         name: 'Custom T-Shirt',
         category: 'Apparel',

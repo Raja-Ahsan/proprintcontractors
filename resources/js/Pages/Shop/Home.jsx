@@ -163,8 +163,8 @@ export default function Home({ featuredProducts = [], shopCategories = [] }) {
                                 height={900}
                                 className="h-auto w-full transition-transform duration-[2000ms] group-hover:scale-105"
                             />
-                            <div className="absolute inset-0 bg-gradient-to-t from-background via-background/30 to-transparent" />
-                            <div className="absolute bottom-6 left-6 right-6 flex flex-wrap gap-3">
+                            <div className="absolute inset-0 bg-gradient-to-t via-background/30 to-transparent" />
+                            {/* <div className="absolute bottom-6 left-6 right-6 flex flex-wrap gap-3">
                                 {[
                                     '48hr ship',
                                     'Premium quality',
@@ -181,7 +181,7 @@ export default function Home({ featuredProducts = [], shopCategories = [] }) {
                                         <span className="text-primary">â—</span> {t}
                                     </div>
                                 ))}
-                            </div>
+                            </div> */}
                         </div>
                     </div>
                 </div>

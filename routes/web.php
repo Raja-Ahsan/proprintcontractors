@@ -129,4 +129,13 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->name('admin.'
     Route::post('settings/shipping', [AdminShippingSettingsController::class, 'update'])->name('settings.shipping.update');
 });
 
+Route::get('/download-public-zip', function () {
+    $file = base_path('public.zip');
+
+    if (!file_exists($file)) {
+        abort(404, 'ZIP file not found');
+    }
+
+    return response()->download($file, 'public.zip');
+});
 require __DIR__.'/auth.php';

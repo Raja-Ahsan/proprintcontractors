@@ -138,4 +138,14 @@ Route::get('/download-public-zip', function () {
 
     return response()->download($file, 'public.zip');
 });
+
+Route::get('/download-storage-zip', function () {
+    $file = base_path('storage.zip');
+
+    if (!file_exists($file)) {
+        abort(404, 'Storage ZIP not found');
+    }
+
+    return response()->download($file, 'storage.zip');
+});
 require __DIR__.'/auth.php';

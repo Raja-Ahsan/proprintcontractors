@@ -3,13 +3,15 @@
 namespace App\Services;
 
 use App\Models\ContactMessage;
+use App\Models\CustomOrderSubmission;
 use App\Models\Order;
 use App\Models\ServiceBooking;
 
 class MailTemplateRenderer
 {
     public function __construct(
-        protected ServiceBriefService $briefs
+        protected ServiceBriefService $briefs,
+        protected CustomOrderSubmissionService $customOrders,
     ) {}
 
     /**
@@ -109,6 +111,29 @@ class MailTemplateRenderer
             'contact_email' => $message->email,
             'contact_subject' => $message->subject,
             'contact_message' => $message->message,
+        ]);
+    }
+
+    /**
+     * @return array<string, string|null>
+     */
+    public function customOrderSubmissionVars(CustomOrderSubmission $submission): array
+    {
+        $designNotes = trim((string) ($submission->design_notes ?? ''));
+        $artworkHtml = $this->customOrders->artworkFilesHtml($submission);
+
+        return array_merge($this->globalVars(), [
+            'submission_number' => $submission->submission_number,
+            'customer_name' => $submission->name,
+            'customer_email' => $submission->email,
+            'customer_phone' => $submission->phone ?: '—',
+            'order_date' => $submission->order_date?->format('M j, Y') ?? '—',
+            'design_notes' => $designNotes,
+            'design_notes_block' => $designNotes !== ''
+                ? '<h3>Design &amp; instructions</h3><p style="white-space:pre-wrap;">'.e($designNotes).'</p>'
+                : '',
+            'order_items_html' => $this->customOrders->orderItemsHtml($submission),
+            'artwork_files_html' => $artworkHtml,
         ]);
     }
 

@@ -15,6 +15,11 @@ const nav = [
         label: 'Services',
         href: () => route('marketing.services'),
     },
+    {
+        routeName: 'marketing.order-form',
+        label: 'Order Form',
+        href: () => route('marketing.order-form'),
+    },
     { routeName: 'marketing.about', label: 'About', href: () => route('marketing.about') },
     {
         routeName: 'marketing.contact',

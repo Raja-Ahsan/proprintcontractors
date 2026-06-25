@@ -24,9 +24,11 @@ class EmailTemplatesController extends Controller
             'order_processing_quote',
             'order_shipped',
             'service_booking_confirmation',
+            'custom_order_confirmation',
             'contact_notification',
             'order_admin',
             'service_booking_admin',
+            'custom_order_admin',
         ];
     }
 
@@ -42,9 +44,11 @@ class EmailTemplatesController extends Controller
             'order_processing_quote' => ['email.order_processing_quote.subject', 'email.order_processing_quote.body_html'],
             'order_shipped' => ['email.order_shipped.subject', 'email.order_shipped.body_html'],
             'service_booking_confirmation' => ['email.service_booking_confirmation.subject', 'email.service_booking_confirmation.body_html'],
+            'custom_order_confirmation' => ['email.custom_order_confirmation.subject', 'email.custom_order_confirmation.body_html'],
             'contact_notification' => ['email.contact_notification.subject', 'email.contact_notification.body_html'],
             'order_admin' => ['email.order_admin.subject', 'email.order_admin.body_html'],
             'service_booking_admin' => ['email.service_booking_admin.subject', 'email.service_booking_admin.body_html'],
+            'custom_order_admin' => ['email.custom_order_admin.subject', 'email.custom_order_admin.body_html'],
         ];
     }
 
@@ -73,6 +77,7 @@ class EmailTemplatesController extends Controller
                 'Orders' => '{{order_number}}, {{order_total}}, {{order_status}}, {{shipping_address}}, {{order_items_html}}, {{order_pricing_html}}',
                 'Contact (admin)' => '{{contact_name}}, {{contact_email}}, {{contact_subject}}, {{contact_message}}',
                 'Service bookings' => '{{booking_number}}, {{service_name}}, {{category_name}}, {{customer_name}}, {{customer_email}}, {{customer_phone}}, {{booking_total}}, {{booking_notes_block}}, {{booking_brief_html}}',
+                'Custom order forms' => '{{submission_number}}, {{customer_name}}, {{customer_email}}, {{customer_phone}}, {{order_date}}, {{order_items_html}}, {{design_notes_block}}, {{artwork_files_html}}',
             ],
         ]);
     }

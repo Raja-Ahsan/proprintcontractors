@@ -12,12 +12,14 @@ const customerTabs = [
     { id: 'order_processing_quote', label: 'Order processing (quote)' },
     { id: 'order_shipped', label: 'Order shipped' },
     { id: 'service_booking_confirmation', label: 'Service booking confirmation' },
+    { id: 'custom_order_confirmation', label: 'Custom order form (customer)' },
 ];
 
 const adminTabs = [
     { id: 'contact_notification', label: 'Contact form (admin)' },
     { id: 'order_admin', label: 'New order (admin)' },
     { id: 'service_booking_admin', label: 'Service booking (admin)' },
+    { id: 'custom_order_admin', label: 'Custom order form (admin)' },
 ];
 
 const allTabs = [...customerTabs, ...adminTabs];

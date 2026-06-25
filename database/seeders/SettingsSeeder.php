@@ -151,6 +151,40 @@ HTML,
 <p>We will be in touch soon. Questions? Email us at {{support_email}}.</p>
 <p>— {{site_name}}</p>
 HTML,
+
+            'email.custom_order_confirmation.subject' => 'Order form {{submission_number}} received — {{site_name}}',
+            'email.custom_order_confirmation.body_html' => <<<'HTML'
+<p>Hi {{customer_name}},</p>
+<p>Thank you for submitting custom order form <strong>{{submission_number}}</strong>.</p>
+<p>We have received your request and will contact you shortly to confirm details and pricing.</p>
+<table cellpadding="6" cellspacing="0" style="border-collapse:collapse;">
+<tr><td><strong>Order date</strong></td><td>{{order_date}}</td></tr>
+<tr><td><strong>Phone</strong></td><td>{{customer_phone}}</td></tr>
+</table>
+<h3>Order items</h3>
+{{order_items_html}}
+{{design_notes_block}}
+{{artwork_files_html}}
+<p>Questions? Reply to this email or contact us at {{support_email}}.</p>
+<p>— {{site_name}}</p>
+HTML,
+
+            'email.custom_order_admin.subject' => 'New custom order form {{submission_number}} — {{site_name}}',
+            'email.custom_order_admin.body_html' => <<<'HTML'
+<p>A new custom order form has been submitted.</p>
+<table cellpadding="6" cellspacing="0" style="border-collapse:collapse;">
+<tr><td><strong>Reference</strong></td><td>{{submission_number}}</td></tr>
+<tr><td><strong>Customer</strong></td><td>{{customer_name}}</td></tr>
+<tr><td><strong>Email</strong></td><td>{{customer_email}}</td></tr>
+<tr><td><strong>Phone</strong></td><td>{{customer_phone}}</td></tr>
+<tr><td><strong>Order date</strong></td><td>{{order_date}}</td></tr>
+</table>
+<h3>Order items</h3>
+{{order_items_html}}
+{{design_notes_block}}
+{{artwork_files_html}}
+<p>— {{site_name}}</p>
+HTML,
         ];
 
         foreach ($defaults as $key => $value) {

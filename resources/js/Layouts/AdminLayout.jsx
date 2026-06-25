@@ -6,6 +6,7 @@ import {
     Briefcase,
     CalendarCheck,
     ChevronDown,
+    ClipboardList,
     ExternalLink,
     FolderTree,
     Home,
@@ -74,6 +75,12 @@ const nav = [
         href: () => route('admin.contact-messages.index'),
         routeName: 'admin.contact-messages.*',
         icon: MessageSquare,
+    },
+    {
+        name: 'Order forms',
+        href: () => route('admin.custom-order-submissions.index'),
+        routeName: 'admin.custom-order-submissions.*',
+        icon: ClipboardList,
     },
     {
         name: 'Coupons',

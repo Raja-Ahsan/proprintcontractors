@@ -105,6 +105,14 @@ export function ShopFooter() {
                         </li>
                         <li>
                             <Link
+                                href={route('marketing.order-form')}
+                                className="hover:text-primary"
+                            >
+                                Order Form
+                            </Link>
+                        </li>
+                        <li>
+                            <Link
                                 href={route('marketing.contact')}
                                 className="hover:text-primary"
                             >
